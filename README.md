@@ -8,8 +8,8 @@ Released September 30, 2014
 Contact: kiacovino@usgs.gov
 
 RUNNING THE SCRIPT: 
-No need to install anything. Just make sure you have
-the correct dependencies installed before running the script: 
+Make sure you have the correct dependencies 
+installed before running the script: 
 Python 
 wx
 matplotlib 
