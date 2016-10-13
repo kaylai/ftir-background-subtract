@@ -5,7 +5,7 @@ Copyright Nial Peters & Kayla Iacovino, 2014
 
 Version 1.1.0
 Released September 30, 2014
-Contact: kiacovino@usgs.gov
+Contact: kayla.iacovino@asu.edu
 
 RUNNING THE SCRIPT: 
 Make sure you have the correct dependencies 
