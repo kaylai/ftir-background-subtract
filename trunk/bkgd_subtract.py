@@ -1,7 +1,7 @@
 import wx
 import sys
 import os.path
-import cPickle
+import pickle
 import matplotlib
 matplotlib.use('wxAgg') #bad things happen if you don't use the wxAgg backend
 import pylab as plt
@@ -229,7 +229,7 @@ class FileChooser(wx.Frame):
              
         wx.YieldIfNeeded()
         wavenum, intensity = load_ftir_file(filename)
-        print "loaded ",filename
+        print("loaded ",filename)
         scan = ProcessedScan(wavenum, intensity)
         
         self.p = PlotManager(scan)    
@@ -561,7 +561,7 @@ class ProcessedScan:
     
     def plot_bkgd_fit(self, ax):
         
-        ignored = zip(*self.bkgd_ignored_pts)
+        ignored = list(zip(*self.bkgd_ignored_pts))
         if ignored:
             ax.errorbar(ignored[0], ignored[1], ignored[3], ignored[2], 'r+')
         
@@ -772,7 +772,7 @@ class PlotManager:
 
 def load_ftir_file(filename):
 
-    reader = csv.reader(open(filename, "Urb"), dialect="excel") 
+    reader = csv.reader(open(filename, "rt"), dialect="excel") 
 
     wavenumber = []
     absorbance = []
@@ -784,7 +784,7 @@ def load_ftir_file(filename):
     return numpy.array(wavenumber), numpy.array(absorbance)
 
 if __name__ == '__main__':
-    app = wx.PySimpleApp()
+    app = wx.App()
 
     f = FileChooser()
     f.CenterOnScreen()
