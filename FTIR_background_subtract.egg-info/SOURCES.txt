@@ -1,0 +1,9 @@
+README.md
+setup.py
+FTIR_background_subtract.egg-info/PKG-INFO
+FTIR_background_subtract.egg-info/SOURCES.txt
+FTIR_background_subtract.egg-info/dependency_links.txt
+FTIR_background_subtract.egg-info/requires.txt
+FTIR_background_subtract.egg-info/top_level.txt
+FTIRbackgroundsubtract/__init__.py
+FTIRbackgroundsubtract/core.py
