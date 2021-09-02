@@ -1,14 +1,18 @@
-FROM github.com/kaylai/ftir-background-subtract:master
+FROM python:3.6.1-buster
+
+LABEL maintainer="Kayla Iacovino: kaylaiacovino@gmail.com"
+
+RUN pip install ftir-background-subtract
 
 # Make sure the contents of our repo are in ${HOME}
-COPY . ${HOME}
-USER root
-RUN chown -R ${NB_UID} ${HOME}
-RUN pip install --no-cache-dir appmode
-RUN pip install --no-cache-dir VESIcal
-RUN jupyter nbextension enable --py --sys-prefix appmode
-RUN jupyter serverextension enable --py --sys-prefix appmode
-USER ${NB_USER}
+# COPY . ${HOME}
+# USER root
+# RUN chown -R ${NB_UID} ${HOME}
+# RUN pip install --no-cache-dir appmode
+# RUN pip install --no-cache-dir ftir-background-subtract
+# RUN jupyter nbextension enable --py --sys-prefix appmode
+# RUN jupyter serverextension enable --py --sys-prefix appmode
+# USER ${NB_USER}
 
 # create a user called 1000 (binder cannot run as root)
 # ARG NB_USER=jovyan
