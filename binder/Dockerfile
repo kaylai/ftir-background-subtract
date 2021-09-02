@@ -1,4 +1,4 @@
-FROM python:3.6.1-buster
+FROM python:3
 
 LABEL maintainer="Kayla Iacovino: kaylaiacovino@gmail.com"
 
