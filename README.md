@@ -1,17 +1,17 @@
 # ftir-background-subtract
 
 README FOR FTIR BACKGROUND SUBTRACT TOOL 
-Copyright Nial Peters & Kayla Iacovino, 2014
+Copyright Nial Peters & Kayla Iacovino, 2021
 
-Version 1.1.0
-Released September 30, 2014
-Contact: kayla.iacovino@asu.edu
+Version 1.2.0
+Released September 2, 2021
+Contact: kaylaiacovino@gmail.com
 
 RUNNING THE SCRIPT: 
 Make sure you have the correct dependencies 
 installed before running the script: 
 Python 
-wx
+wxPython
 matplotlib 
 pylab 
 numpy
