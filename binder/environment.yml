@@ -5,3 +5,32 @@ dependencies:
   - numpy
   - matplotlib
   - wxPython
+  - wheel
+  - backports       
+  - backports.lzma  
+  - ca-certificates 
+  - certifi         
+  - expat           
+  - gettext         
+  - icu             
+  - jpeg            
+  - libcxx          
+  - libffi          
+  - libiconv        
+  - libpng          
+  - libxml2         
+  - llvm-openmp     
+  - ncurses         
+  - openssl         
+  - pip             
+  - python          
+  - python.app      
+  - readline        
+  - setuptools      
+  - six             
+  - sqlite          
+  - tk              
+  - wheel           
+  - wxpython        
+  - xz              
+  - zlib            
