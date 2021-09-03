@@ -22,9 +22,7 @@ dependencies:
   - llvm-openmp     
   - ncurses         
   - openssl         
-  - pip             
-  - python          
-  - python.app      
+  - pip                  
   - readline        
   - setuptools      
   - six             
