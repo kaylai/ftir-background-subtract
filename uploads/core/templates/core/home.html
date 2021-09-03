@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block content %}
+
+{% csrf_token %}
+<div class="container">
+    <div class="row">
+        <div class="col-xs-12">
+            <h1>DensityX Online Interface</h1>
+            DensityX is a python code to calculate the density of magmatic liquids from 423-1,627 &deg;C and up to 30 kbar. This code and the references used to create it can be found in the companion paper: <a href="https://www.jvolcanica.org/ojs/index.php/volcanica/article/view/12">Iacovino and Till (2019)</a>
+            <p>&nbsp;</p>
+            <P>For now, <b><a href="readthedocs.html">READ THE DOCS</a></b> to learn how to use this tool.</p>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="fileInput"><h1>Upload File</h2></label>
+                    <input type="file" class="form-control" id="fileInput" aria-describedby="fileHelp" name="myfile">
+                    <small id="fileHelp" class="form-text text-muted">Upload your valid .xlsx file here.</small>
+                </div>
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </form>
+            <P>&nbsp;</p>
+            <P>Just want to run one sample at a time? Download the <a href="https://github.com/kaylai/DensityX-heroku/raw/master/DensityX.xlsx">Excel version</a> of this calculator.</p>
+        </div>
+    </div>
+</div>
+
+{% if uploaded_file_url %}
+<p>File uploaded at: <a href="{{ uploaded_file_url }}">{{ uploaded_file_url }}</a></p>
+<p>Also print another thing if a file is uploaded</p>
+{% endif %}
+
+{% endblock %}
