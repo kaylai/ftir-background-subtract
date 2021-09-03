@@ -1,4 +1,5 @@
-FROM python:3
+# FROM python:3
+FROM registry.gitlab.com/enki-portal/thermoengine:master
 
 LABEL maintainer="Kayla Iacovino: kaylaiacovino@gmail.com"
 
