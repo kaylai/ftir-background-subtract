@@ -1,12 +1,5 @@
-#libgtk-3-dev
-#libwebkitgtk-dev
-#libjpeg-dev
-#libtiff-dev
-#libsdl1.2-dev
-#freeglut3
-#freeglut3-dev
-#libnotify-dev
-#libgstreamerd-3-dev
+freeglut3
+libgstreamerd-3-dev
 dpkg-dev
 build-essential
 python3.7-dev
