@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSV Plotter with Draggable Lines</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        .line {
+            stroke: green;
+            stroke-width: 2;
+            stroke-dasharray: 2, 2;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <input type="file" id="fileInput" accept=".csv">
+    <button onclick="handleFile()">Import CSV</button>
+
+    <!-- Add an SVG container for the plot -->
+    <svg id="plot" width="800" height="400"></svg>
+
+    <!-- Add the Background Fitting section -->
+    <div id="background-fitting">
+        <h3>Background Fitting</h3>
+        <label for="lower-limit-input">Lower Limit:</label>
+        <input type="number" id="lower-limit-input" value="0"><br><br>
+
+        <label for="upper-limit-input">Upper Limit:</label>
+        <input type="number" id="upper-limit-input" value="100"><br><br>
+    </div>
+
+    <script>
+        let lowerLimitLine;
+        let upperLimitLine;
+
+        // Function to update the plot based on the line positions
+        function updatePlot() {
+            const lowerLimitInput = document.getElementById('lower-limit-input');
+            const upperLimitInput = document.getElementById('upper-limit-input');
+
+            // Get the x positions of the lines
+            const lowerX = parseFloat(lowerLimitLine.attr('x1'));
+            const upperX = parseFloat(upperLimitLine.attr('x1'));
+
+            // Update the text boxes with x values
+            lowerLimitInput.value = lowerX.toFixed(2);
+            upperLimitInput.value = upperX.toFixed(2);
+
+            // Your code to update the plot based on the new line positions
+        }
+
+        // Function to handle file import and plot data
+        function handleFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                // Parse the CSV file
+                const text = e.target.result;
+                const data = d3.csvParseRows(text, function (d) {
+                    return d.map(Number);
+                });
+
+                // Extract x and y data from the CSV
+                const xData = data.map(function (row) {
+                    return row[0];
+                });
+
+                const yData = data.map(function (row) {
+                    return row[1];
+                });
+
+                // Create a plot using D3.js
+                const svg = d3.select('#plot');
+                svg.selectAll('*').remove();
+
+                // Set up the scales for x and y data
+                const xScale = d3.scaleLinear()
+                    .domain([d3.min(xData), d3.max(xData)])
+                    .range([50, 750]); // Adjust the range as needed
+
+                const yScale = d3.scaleLinear()
+                    .domain([d3.min(yData), d3.max(yData)])
+                    .range([350, 50]); // Adjust the range as needed
+
+                // Create circles to represent the data points
+                svg.selectAll('circle')
+                    .data(data)
+                    .enter()
+                    .append('circle')
+                    .attr('cx', function (d) {
+                        return xScale(d[0]);
+                    })
+                    .attr('cy', function (d) {
+                        return yScale(d[1]);
+                    })
+                    .attr('r', 5) // Adjust the radius as needed
+                    .style('fill', 'blue'); // Adjust the color as needed
+
+                // Add the green vertical lines
+                lowerLimitLine = svg.append('line')
+                    .attr('class', 'line')
+                    .attr('x1', 100) // Initial x position
+                    .attr('y1', 50) // Start of the plot's y-axis
+                    .attr('x2', 100) // Initial x position
+                    .attr('y2', 350) // End of the plot's y-axis
+                    .attr('stroke', 'green')
+                    .attr('stroke-width', 2)
+                    .attr('stroke-dasharray', '2,2')
+                    .call(d3.drag().on('drag', dragmoveLower));
+
+                upperLimitLine = svg.append('line')
+                    .attr('class', 'line')
+                    .attr('x1', 300) // Initial x position
+                    .attr('y1', 50) // Start of the plot's y-axis
+                    .attr('x2', 300) // Initial x position
+                    .attr('y2', 350) // End of the plot's y-axis
+                    .attr('stroke', 'green')
+                    .attr('stroke-width', 2)
+                    .attr('stroke-dasharray', '2,2')
+                    .call(d3.drag().on('drag', dragmoveUpper));
+
+                // Show the lines
+                lowerLimitLine.style('display', 'block');
+                upperLimitLine.style('display', 'block');
+            };
+
+            reader.readAsText(file);
+        }
+
+        // Define drag behavior for the lower limit line
+        function dragmoveLower(event, d) {
+            lowerLimitLine.attr('x1', event.x).attr('x2', event.x);
+            // Update the text box and plot on drag
+            updatePlot();
+        }
+
+        // Define drag behavior for the upper limit line
+        function dragmoveUpper(event, d) {
+            upperLimitLine.attr('x1', event.x).attr('x2', event.x);
+            // Update the text box and plot on drag
+            updatePlot();
+        }
+    </script>
+</body>
+</html>

@@ -258,7 +258,7 @@ class BackgroundFittingControls(wx.Panel):
         self.get_lims_button = wx.Button(self, wx.ID_ANY, "Get Limits")   
 
         #define calculate wt% button
-        self.calculate_wtper = wx.BoxSizer(wx.HORIZONTAL)
+        self.calculate_wtper_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.calculate_wtper_button = wx.Button(self, wx.ID_ANY, "Calculate wt%")
 
         #define suggestion buttons
@@ -273,12 +273,17 @@ class BackgroundFittingControls(wx.Panel):
         self.fit_order_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.fit_order_txtbox = wx.TextCtrl(self, wx.ID_ANY, size=(50, -1))
 
-        #define absorption coefficient text box
+        #define absorption coefficient text box and search icon
         self.to_calc_wtper_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.abs_coeff_txtbox = wx.TextCtrl(self, wx.ID_ANY, size=(50, -1))
+        self.abs_coeff_txtbox = wx.TextCtrl(self, wx.ID_ANY, value="64", size=(50, -1))
+        searchbmp = wx.Bitmap("img/search.bmp", wx.BITMAP_TYPE_BMP)
+        self.abs_coeff_search_button = wx.BitmapButton(self, wx.ID_ANY, searchbmp)#, size=(10,-1))
 
         #define thickness text box
-        self.thickness_txtbox = wx.TextCtrl(self, wx.ID_ANY, size=(50, -1))
+        self.thickness_txtbox = wx.TextCtrl(self, wx.ID_ANY, value="100", size=(50, -1))
+
+        # define density text box
+        self.density_txtbox = wx.TextCtrl(self, wx.ID_ANY, value="2800", size=(50, -1))
         
         #define Apply and Apply suggested buttons
         self.apply_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -324,6 +329,7 @@ class BackgroundFittingControls(wx.Panel):
         self.to_calc_wtper_sizer.AddSpacer(5)
         self.to_calc_wtper_sizer.Add(wx.StaticText(self, wx.ID_ANY,"Absoprtion Coeff:"),0, wx.ALIGN_CENTER_VERTICAL)
         self.to_calc_wtper_sizer.Add(self.abs_coeff_txtbox,0, wx.ALIGN_CENTER_VERTICAL)
+        self.to_calc_wtper_sizer.Add(self.abs_coeff_search_button,0, wx.ALIGN_CENTER_VERTICAL)
 
         self.vsizer.AddSpacer(5)
         self.vsizer.Add(self.to_calc_wtper_sizer,0,wx.ALIGN_CENTER_HORIZONTAL)
@@ -336,14 +342,21 @@ class BackgroundFittingControls(wx.Panel):
         self.vsizer.AddSpacer(5)
         self.vsizer.Add(self.to_calc_wtper_sizer,0,wx.ALIGN_CENTER_HORIZONTAL)
 
+        #Add density label and text box
+        self.to_calc_wtper_sizer.AddSpacer(5)
+        self.to_calc_wtper_sizer.Add(wx.StaticText(self, wx.ID_ANY,"Density (g/L):"),0, wx.ALIGN_CENTER_VERTICAL)
+        self.to_calc_wtper_sizer.Add(self.density_txtbox,0, wx.ALIGN_CENTER_VERTICAL)
+
+        self.vsizer.AddSpacer(5)
+        self.vsizer.Add(self.to_calc_wtper_sizer,0,wx.ALIGN_CENTER_HORIZONTAL)
+
         #Add calculate wt% buttons
         self.calculate_wtper_sizer.AddSpacer(5)
         self.calculate_wtper_sizer.Add(self.calculate_wtper_button,0,wx.ALIGN_CENTER_VERTICAL)
-        self.vsizer.Add(self.apply_sizer,2,wx.ALIGN_CENTER_HORIZONTAL)
+        self.vsizer.Add(self.calculate_wtper_sizer,2,wx.ALIGN_CENTER_HORIZONTAL)
         
-        wx.EVT_BUTTON(self, self.calculate_wtper_button.GetId(), self.on_get_lims)
-        #TODO update this with action for clicking wtper button
-        wx.EVT_BUTTON(self, self.apply_button.GetId(), self.on_apply)
+        # add event for calculate_wtper_button
+        wx.EVT_BUTTON(self, self.calculate_wtper_button.GetId(), self.on_calc_wtper)
         self.SetSizer(self.vsizer)
         self.vsizer.Fit(self)
         self.SetAutoLayout(1)
@@ -533,7 +546,23 @@ class BackgroundFittingControls(wx.Panel):
         scan.bkgd_fit_order = int(self.fit_order_txtbox.GetValue())
         scan.calculate()
         self.plot_manager.update(scan)
-        wx.EndBusyCursor()    
+        wx.EndBusyCursor()  
+
+    def on_calc_wtper(self, evt):
+        wx.BeginBusyCursor()
+        scan = self.plot_manager.get_current_scan()
+        peak_height = g_peak_height
+
+        absorption_coeff = float(self.abs_coeff_txtbox.GetValue())
+        thickness_um = float(self.thickness_txtbox.GetValue())
+        thickness_cm = thickness_um * 0.0001
+        density_g_per_L = float(self.density_txtbox.GetValue())
+
+        # TODO add dropdown for species and use particular MW here instead of 18.08
+        conc = (100.0 * 18.08 * peak_height) / (thickness_cm * density_g_per_L * absorption_coeff)
+        print(conc)
+        wx.EndBusyCursor() 
+
 
 class ControlWindow(wx.Frame):
     def __init__(self, plot_manager, title):
@@ -723,6 +752,9 @@ class BackgroundFitDisplay:
         
         
 class BackgroundSubtractedDisplay:
+    """
+    Updates to the background subtracted subplot
+    """
     def __init__(self, ax):
         self.ax = ax
         self.ax.invert_xaxis()
@@ -734,7 +766,10 @@ class BackgroundSubtractedDisplay:
         wavenum = scan.angles[low_idx:high_idx]
         intens = scan.col_amount[low_idx:high_idx] - scan.bkgd_func(wavenum)
 
-        peak_height = round(max(intens), 5)
+        global g_peak_height # I know I'm not supposed to but too bad
+        g_peak_height = round(max(intens), 5)
+
+        peak_height = g_peak_height
         x_loc = 0.6 * (max(wavenum) - min(wavenum)) + min(wavenum)
         y_loc = 0.8 * peak_height
         peak_string = "Peak height: " + str(peak_height)
@@ -801,7 +836,7 @@ class PlotManager:
         
     def get_current_scan(self):
         return self.scan
-    
+
     def show(self):    
         plt.show()
         
