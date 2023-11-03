@@ -4,10 +4,22 @@
     <title>CSV Plotter with Draggable Lines</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
-        .line {
+        .line.green {
             stroke: green;
             stroke-width: 2;
             stroke-dasharray: 2, 2;
+            cursor: pointer;
+        }
+
+        .line.red {
+            stroke: red;
+            stroke-width: 2;
+            stroke-dasharray: 2, 2;
+            cursor: pointer;
+        }
+
+        .line-plot {
+            stroke-width: 2;
             cursor: pointer;
         }
     </style>
@@ -23,30 +35,98 @@
     <div id="background-fitting">
         <h3>Background Fitting</h3>
         <label for="lower-limit-input">Lower Limit:</label>
-        <input type="number" id="lower-limit-input" value="0"><br><br>
+        <input type="number" id="lower-limit-input" value="1500"><br><br>
 
         <label for="upper-limit-input">Upper Limit:</label>
-        <input type="number" id="upper-limit-input" value="100"><br><br>
+        <input type="number" id="upper-limit-input" value="3000"><br><br>
+
+    </div>
+
+    <!-- Add the Exclude Limits section -->
+    <div id="exclude-limits">
+        <h3>Exclude Limits</h3>
+        <label for="exclude-lower-input">Exclude Lower Limit:</label>
+        <input type="number" id="exclude-lower-input" value="2000"><br><br>
+
+        <label for="exclude-upper-input">Exclude Upper Limit:</label>
+        <input type="number" id="exclude-upper-input" value="2500"><br><br>
+
     </div>
 
     <script>
         let lowerLimitLine;
         let upperLimitLine;
+        let excludeLowerLine;
+        let excludeUpperLine;
+
+        let xScale; // Define xScale
+        let svg; // Define svg as a global variable
+        let width = 800; // Set the width of the SVG
+        let height = 400; // Set the height of the SVG
+        let margin = { top: 20, right: 20, bottom: 40, left: 40 }; // Define margins
+
 
         // Function to update the plot based on the line positions
         function updatePlot() {
             const lowerLimitInput = document.getElementById('lower-limit-input');
             const upperLimitInput = document.getElementById('upper-limit-input');
+            const excludeLowerInput = document.getElementById('exclude-lower-input');
+            const excludeUpperInput = document.getElementById('exclude-upper-input');
 
             // Get the x positions of the lines
             const lowerX = parseFloat(lowerLimitLine.attr('x1'));
             const upperX = parseFloat(upperLimitLine.attr('x1'));
+            const excludeLowerX = parseFloat(excludeLowerLine.attr('x1'));
+            const excludeUpperX = parseFloat(excludeUpperLine.attr('x1'));
 
-            // Update the text boxes with x values
-            lowerLimitInput.value = lowerX.toFixed(2);
-            upperLimitInput.value = upperX.toFixed(2);
+            // Update the text boxes with x values using parseFloat and toFixed
+            lowerLimitInput.value = parseFloat(lowerX).toFixed(2);
+            upperLimitInput.value = parseFloat(upperX).toFixed(2);
+            excludeLowerInput.value = parseFloat(excludeLowerX).toFixed(2);
+            excludeUpperInput.value = parseFloat(excludeUpperX).toFixed(2);
+        }
 
-            // Your code to update the plot based on the new line positions
+        // Function to update the text boxes with x values based on line positions
+        function updateTextBoxValues() {
+            const lowerLimitInput = document.getElementById('lower-limit-input');
+            const upperLimitInput = document.getElementById('upper-limit-input');
+            const excludeLowerInput = document.getElementById('exclude-lower-input');
+            const excludeUpperInput = document.getElementById('exclude-upper-input');
+
+            // Get the x positions of the lines
+            const lowerX = parseFloat(lowerLimitLine.attr('x1'));
+            const upperX = parseFloat(upperLimitLine.attr('x1'));
+            const excludeLowerX = parseFloat(excludeLowerLine.attr('x1'));
+            const excludeUpperX = parseFloat(excludeUpperLine.attr('x1'));
+
+            // Calculate the corresponding x-axis values using the xScale
+            const lowerXValue = xScale.invert(lowerX);
+            const upperXValue = xScale.invert(upperX);
+            const excludeLowerXValue = xScale.invert(excludeLowerX);
+            const excludeUpperXValue = xScale.invert(excludeUpperX);
+
+            // Update the text boxes with the calculated x-axis values, rounded to two decimal places
+            lowerLimitInput.value = lowerXValue.toFixed(2);
+            upperLimitInput.value = upperXValue.toFixed(2);
+            excludeLowerInput.value = excludeLowerXValue.toFixed(2);
+            excludeUpperInput.value = excludeUpperXValue.toFixed(2);
+        }
+
+        // Function to update the line position based on a text box value
+        function updateLinePosition(textboxId, line) {
+            const textbox = document.getElementById(textboxId);
+            const newXValue = parseFloat(textbox.value);
+
+            if (!isNaN(newXValue)) {
+                // Calculate the new position on the x-axis using the xScale
+                const newPosition = xScale(newXValue);
+
+                // Update the line's x-position based on the new position
+                line.attr('x1', newPosition).attr('x2', newPosition);
+
+                // Update the text box values based on the new line positions
+                updateTextBoxValues();
+            }
         }
 
         // Function to handle file import and plot data
@@ -59,24 +139,26 @@
                 // Parse the CSV file
                 const text = e.target.result;
                 const data = d3.csvParseRows(text, function (d) {
-                    return d.map(Number);
+                    return d.map(function (value) {
+                        return parseFloat(value); // Parse each value as a floating-point number
+                    });
                 });
 
                 // Extract x and y data from the CSV
                 const xData = data.map(function (row) {
-                    return row[0];
+                    return parseFloat(row[0]); // Use parseFloat to convert x-values to decimal numbers
                 });
 
                 const yData = data.map(function (row) {
-                    return row[1];
+                    return parseFloat(row[1]); // Use parseFloat to convert x-values to decimal numbers
                 });
 
                 // Create a plot using D3.js
-                const svg = d3.select('#plot');
+                svg = d3.select('#plot');
                 svg.selectAll('*').remove();
 
                 // Set up the scales for x and y data
-                const xScale = d3.scaleLinear()
+                xScale = d3.scaleLinear() // Update xScale
                     .domain([d3.min(xData), d3.max(xData)])
                     .range([50, 750]); // Adjust the range as needed
 
@@ -84,26 +166,28 @@
                     .domain([d3.min(yData), d3.max(yData)])
                     .range([350, 50]); // Adjust the range as needed
 
-                // Create circles to represent the data points
-                svg.selectAll('circle')
-                    .data(data)
-                    .enter()
-                    .append('circle')
-                    .attr('cx', function (d) {
+                // Create a path for the line plot
+                const line = d3.line()
+                    .x(function (d) {
                         return xScale(d[0]);
                     })
-                    .attr('cy', function (d) {
+                    .y(function (d) {
                         return yScale(d[1]);
-                    })
-                    .attr('r', 5) // Adjust the radius as needed
-                    .style('fill', 'blue'); // Adjust the color as needed
+                    });
+
+                svg.append('path')
+                    .datum(data)
+                    .attr('class', 'line-plot')
+                    .attr('d', line)
+                    .attr('fill', 'none')
+                    .attr('stroke', 'blue'); // Adjust the line color as needed
 
                 // Add the green vertical lines
                 lowerLimitLine = svg.append('line')
-                    .attr('class', 'line')
-                    .attr('x1', 100) // Initial x position
+                    .attr('class', 'line green')
+                    .attr('x1', xScale(1500)) // Set the initial x position based on the x-axis value (e.g., 0)
                     .attr('y1', 50) // Start of the plot's y-axis
-                    .attr('x2', 100) // Initial x position
+                    .attr('x2', xScale(1500)) // Set the initial x position based on the x-axis value (e.g., 0)
                     .attr('y2', 350) // End of the plot's y-axis
                     .attr('stroke', 'green')
                     .attr('stroke-width', 2)
@@ -111,35 +195,130 @@
                     .call(d3.drag().on('drag', dragmoveLower));
 
                 upperLimitLine = svg.append('line')
-                    .attr('class', 'line')
-                    .attr('x1', 300) // Initial x position
+                    .attr('class', 'line green')
+                    .attr('x1', xScale(3000)) // Set the initial x position based on the x-axis value (e.g., 0)
                     .attr('y1', 50) // Start of the plot's y-axis
-                    .attr('x2', 300) // Initial x position
+                    .attr('x2', xScale(3000)) // Set the initial x position based on the x-axis value (e.g., 0)
                     .attr('y2', 350) // End of the plot's y-axis
                     .attr('stroke', 'green')
                     .attr('stroke-width', 2)
                     .attr('stroke-dasharray', '2,2')
                     .call(d3.drag().on('drag', dragmoveUpper));
+                
+                // Add the red vertical lines for Exclude Limits
+                excludeLowerLine = svg.append('line')
+                    .attr('class', 'line red')
+                    .attr('x1', 150) // Initial x position
+                    .attr('y1', 50)  // Start of the plot's y-axis
+                    .attr('x2', 150) // Initial x position
+                    .attr('y2', 350) // End of the plot's y-axis
+                    .attr('stroke', 'red')
+                    .attr('stroke-width', 2)
+                    .attr('stroke-dasharray', '2,2')
+                    .call(d3.drag().on('drag', dragmoveExcludeLower));
+
+                excludeUpperLine = svg.append('line')
+                    .attr('class', 'line red')
+                    .attr('x1', 250) // Initial x position
+                    .attr('y1', 50)  // Start of the plot's y-axis
+                    .attr('x2', 250) // Initial x position
+                    .attr('y2', 350) // End of the plot's y-axis
+                    .attr('stroke', 'red')
+                    .attr('stroke-width', 2)
+                    .attr('stroke-dasharray', '2,2')
+                    .call(d3.drag().on('drag', dragmoveExcludeUpper));
 
                 // Show the lines
                 lowerLimitLine.style('display', 'block');
                 upperLimitLine.style('display', 'block');
+                excludeLowerLine.style('display', 'block');
+                excludeUpperLine.style('display', 'block');
+
+                // Call the addAxesAndTicks function to add axes and tick marks
+                addAxesAndTicks(xScale, yScale);
             };
 
             reader.readAsText(file);
         }
 
+        // Function to add visible axes and tick marks
+        function addAxesAndTicks(xScale, yScale) {
+            // Append x-axis to the SVG
+            svg.append("g")
+                .attr("class", "x-axis")
+                .attr("transform", "translate(0," + (height - margin.bottom) + ")")
+                .call(d3.axisBottom(xScale));
+
+            // Append y-axis to the SVG
+            svg.append("g")
+                .attr("class", "y-axis")
+                .attr("transform", "translate(" + margin.left + ",0)")
+                .call(d3.axisLeft(yScale));
+
+            // Add x-axis label
+            svg.append("text")
+                .attr("class", "x-axis-label")
+                .attr("x", width / 2)
+                .attr("y", height - margin.bottom / 2)
+                .style("text-anchor", "middle")
+                .text("X-Axis Label");
+
+            // Add y-axis label
+            svg.append("text")
+                .attr("class", "y-axis-label")
+                .attr("x", -height / 2)
+                .attr("y", margin.left / 2)
+                .attr("transform", "rotate(-90)")
+                .style("text-anchor", "middle")
+                .text("Y-Axis Label");
+
+            // Add x-axis tick marks
+            svg.selectAll(".x-axis text")
+                .attr("transform", "rotate(-45)")
+                .style("text-anchor", "end");
+
+            // Add y-axis tick marks
+            svg.selectAll(".y-axis text")
+                .style("text-anchor", "end");
+        }
+
         // Define drag behavior for the lower limit line
         function dragmoveLower(event, d) {
+            const newX = xScale.invert(event.x); // Convert the x-position to x-axis value
             lowerLimitLine.attr('x1', event.x).attr('x2', event.x);
-            // Update the text box and plot on drag
-            updatePlot();
+            // Update the text box and plot based on the new x-axis value
+            updateTextBox('lower-limit-input', newX);
         }
 
         // Define drag behavior for the upper limit line
         function dragmoveUpper(event, d) {
+            const newX = xScale.invert(event.x); // Convert the x-position to x-axis value
             upperLimitLine.attr('x1', event.x).attr('x2', event.x);
-            // Update the text box and plot on drag
+            // Update the text box and plot based on the new x-axis value
+            updateTextBox('upper-limit-input', newX);
+        }
+
+        // Define drag behavior for the Exclude Lower Limit line
+        function dragmoveExcludeLower(event, d) {
+            const newX = xScale.invert(event.x); // Convert the x-position to x-axis value
+            excludeLowerLine.attr('x1', event.x).attr('x2', event.x);
+            // Update the text box and plot based on the new x-axis value
+            updateTextBox('exclude-lower-input', newX);
+        }
+
+        // Define drag behavior for the Exclude Upper Limit line
+        function dragmoveExcludeUpper(event, d) {
+            const newX = xScale.invert(event.x); // Convert the x-position to x-axis value
+            excludeUpperLine.attr('x1', event.x).attr('x2', event.x);
+            // Update the text box and plot based on the new x-axis value
+            updateTextBox('exclude-upper-input', newX);
+        }
+
+        // Function to update the text box and plot based on the new x-axis value
+        function updateTextBox(textboxId, newX) {
+            const textbox = document.getElementById(textboxId);
+            textbox.value = newX.toFixed(2); // Update the text box with the new x-axis value
+            // Your code to update the plot based on the new line positions
             updatePlot();
         }
     </script>
