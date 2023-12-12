@@ -276,11 +276,8 @@ class BackgroundFittingControls(wx.Panel):
         #define absorption coefficient text box and search icon
         self.to_calc_wtper_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.abs_coeff_txtbox = wx.TextCtrl(self, wx.ID_ANY, value="64", size=(50, -1))
-<<<<<<< Updated upstream
         searchbmp = wx.Bitmap("img/search.bmp", wx.BITMAP_TYPE_BMP)
         self.abs_coeff_search_button = wx.BitmapButton(self, wx.ID_ANY, searchbmp)#, size=(10,-1))
-=======
->>>>>>> Stashed changes
 
         #define thickness text box
         self.thickness_txtbox = wx.TextCtrl(self, wx.ID_ANY, value="100", size=(50, -1))

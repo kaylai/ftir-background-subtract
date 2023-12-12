@@ -1,0 +1,103 @@
+# This project was generated with 0.3.16 using template: https://github.com/beeware/briefcase-template@v0.3.16
+[tool.briefcase]
+project_name = "FTIR Background Subtract OG"
+bundle = "com.example"
+version = "0.0.1"
+url = "https://example.com/ftirbackgroundsubtractog"
+license = "MIT license"
+author = "Kayla Iacovino, Nial Peters"
+author_email = "kaylaiacovino@gmail.com"
+
+[tool.briefcase.app.ftirbackgroundsubtractog]
+formal_name = "FTIR Background Subtract OG"
+description = "At attempt to use briefcase to bundle Nial's OG Backgroundsubtract app"
+long_description = """More details about the app should go here.
+"""
+icon = "src/ftirbackgroundsubtractog/resources/ftirbackgroundsubtractog"
+sources = [
+    "src/ftirbackgroundsubtractog",
+    ]
+test_sources = [
+    "tests",
+]
+
+requires = ['wxPython==4.2.1',
+    'numpy==1.22.1',
+    'opencv-python==4.5.1.48',
+    'matplotlib',
+]
+test_requires = [
+    "pytest",
+]
+
+[tool.briefcase.app.ftirbackgroundsubtractog.macOS]
+universal_build = false
+requires = [
+    "std-nslog~=1.0.0",
+    'wxPython==4.2.1',
+    'numpy==1.22.1',
+    'opencv-python==4.5.1.48',
+    'matplotlib',
+]
+
+[tool.briefcase.app.ftirbackgroundsubtractog.linux]
+requires = ['wxPython==4.2.1',
+    'numpy==1.22.1',
+    'opencv-python==4.5.1.48'
+]
+
+[tool.briefcase.app.ftirbackgroundsubtractog.linux.system.debian]
+system_requires = [
+]
+
+system_runtime_requires = [
+]
+
+[tool.briefcase.app.ftirbackgroundsubtractog.linux.system.rhel]
+system_requires = [
+]
+
+system_runtime_requires = [
+]
+
+[tool.briefcase.app.ftirbackgroundsubtractog.linux.system.suse]
+system_requires = [
+]
+
+system_runtime_requires = [
+]
+
+[tool.briefcase.app.ftirbackgroundsubtractog.linux.system.arch]
+system_requires = [
+]
+
+system_runtime_requires = [
+]
+
+[tool.briefcase.app.ftirbackgroundsubtractog.linux.appimage]
+manylinux = "manylinux2014"
+
+system_requires = [
+]
+linuxdeploy_plugins = []
+
+[tool.briefcase.app.ftirbackgroundsubtractog.linux.flatpak]
+flatpak_runtime = "org.freedesktop.Platform"
+flatpak_runtime_version = "22.08"
+flatpak_sdk = "org.freedesktop.Sdk"
+
+[tool.briefcase.app.ftirbackgroundsubtractog.windows]
+requires = ['wxPython==4.2.1',
+    'numpy==1.22.1',
+    'opencv-python==4.5.1.48']
+
+# Mobile deployments
+[tool.briefcase.app.ftirbackgroundsubtractog.iOS]
+supported = false
+
+[tool.briefcase.app.ftirbackgroundsubtractog.android]
+supported = false
+
+# Web deployments
+[tool.briefcase.app.ftirbackgroundsubtractog.web]
+supported = false
