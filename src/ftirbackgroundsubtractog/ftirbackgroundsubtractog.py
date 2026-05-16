@@ -487,13 +487,43 @@ class ControlWindow(wx.Frame):
         self.SetSize((900, 800))
 
         self.Bind(wx.EVT_CLOSE, self.on_close)
+        
+        # Add menu bar
+        menubar = wx.MenuBar()
+        file_menu = wx.Menu()
+        open_item = file_menu.Append(wx.ID_OPEN, "&Open...\tCtrl+O", "Open an FTIR file")
+        file_menu.AppendSeparator()
+        quit_item = file_menu.Append(wx.ID_EXIT, "&Quit\tCtrl+Q", "Quit")
+        menubar.Append(file_menu, "&File")
+        self.SetMenuBar(menubar)
+
+        self.Bind(wx.EVT_MENU, self.on_menu_open, open_item)
+        self.Bind(wx.EVT_MENU, self.on_menu_quit, quit_item)
 
         self.Show()
 
+    def load_file(self, path):
+        wavenum, intensity = load_ftir_file(path)
+        scan = ProcessedScan(wavenum, intensity)
+        self.plot_manager.scan = scan
+        for p in self.plot_manager.plots:
+            p.update(scan)
+        self.plot_manager.canvas.draw_idle()
+        self.SetTitle(os.path.basename(path) + " - FTIR Background Subtract")
+    
+    def on_menu_open(self, evt):
+        with wx.FileDialog(self, "Open FTIR file",
+                        wildcard="CSV files (*.csv;*.CSV)|*.csv;*.CSV|All files (*.*)|*.*",
+                        style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as dlg:
+            if dlg.ShowModal() == wx.ID_CANCEL:
+                return
+            self.load_file(dlg.GetPath())
+
+    def on_menu_quit(self, evt):
+        self.Close()
 
     def on_close(self, evnt):
         self.Destroy()
-
 
 
 
