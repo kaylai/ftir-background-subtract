@@ -4,7 +4,8 @@ import os.path
 import pickle
 import matplotlib
 matplotlib.use('wxAgg') #bad things happen if you don't use the wxAgg backend
-import pylab as plt
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 import numpy
 import math
 import csv
@@ -183,12 +184,12 @@ class FileChooser(wx.Frame):
              
         wx.YieldIfNeeded()
         wavenum, intensity = load_ftir_file(filename)
-        print("loaded ",filename)
+        print("loaded ", filename)
         scan = ProcessedScan(wavenum, intensity)
-        
-        self.p = PlotManager(scan)    
-        ctrl_win = ControlWindow(self.p, os.path.basename(filename)+" - FTIR Background Subtract")
-        self.p.show()
+
+        # ControlWindow now builds its own PlotManager (which builds the
+        # embedded canvas), so we just hand it the scan.
+        ControlWindow(scan, os.path.basename(filename) + " - FTIR Background Subtract")
         self.Destroy()
 
 
@@ -459,45 +460,38 @@ class BackgroundFittingControls(wx.Panel):
         wx.EndBusyCursor()    
 
 class ControlWindow(wx.Frame):
-    def __init__(self, plot_manager, title):
-        self.plot_manager = plot_manager
+    def __init__(self, scan, title):
         wx.Frame.__init__(self, None, wx.ID_ANY, title)
         self.top_panel = wx.Panel(self, wx.ID_ANY)
-        
+
+        # PlotManager builds the matplotlib Figure and a FigureCanvasWxAgg
+        # widget parented to self.top_panel, so the plot lives inside this frame.
+        self.plot_manager = PlotManager(self.top_panel, scan)
+
         self.main_hsizer = wx.BoxSizer(wx.HORIZONTAL)
         self.main_sizer = wx.BoxSizer(wx.VERTICAL)
-        
+
         self.main_sizer.AddSpacer(10)
-        self.main_sizer.Add(wx.StaticText(self.top_panel,wx.ID_ANY, "Background Fitting:"))
-        self.main_sizer.Add(BackgroundFittingControls(self.top_panel, self.plot_manager),0,wx.EXPAND)
-        
-              
-        self.hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        
-        
+        self.main_sizer.Add(wx.StaticText(self.top_panel, wx.ID_ANY, "Background Fitting:"))
+        self.main_sizer.Add(BackgroundFittingControls(self.top_panel, self.plot_manager), 0, wx.EXPAND)
+        self.main_sizer.Add(self.plot_manager.canvas, 1, wx.EXPAND)
+
         self.main_hsizer.AddSpacer(5)
         self.main_hsizer.Add(self.main_sizer, 1, wx.EXPAND)
         self.main_hsizer.AddSpacer(5)
-        
+
         self.top_panel.SetSizer(self.main_hsizer)
-        self.main_hsizer.Fit(self)
         self.top_panel.SetAutoLayout(1)
 
-        self.Bind(wx.EVT_CLOSE, self.on_close)
-        # wx.EVT_CLOSE(self, self.on_close)
-        
-        fig = plt.gcf()
-        fig.canvas.mpl_connect('close_event', self.on_fig_close)
+        # Give the window a sensible starting size; the canvas needs room.
+        self.SetSize((900, 800))
 
-        
+        self.Bind(wx.EVT_CLOSE, self.on_close)
+
         self.Show()
-    
-    
-    def on_close(self,evnt):
-        plt.close()
-        self.Destroy()
-        
-    def on_fig_close(self,evnt):
+
+
+    def on_close(self, evnt):
         self.Destroy()
 
 
@@ -700,44 +694,44 @@ class BackgroundRangeSelector:
         return min(pos1,pos2), max(pos1,pos2)
 
 class PlotManager:
-    def __init__(self,scan):
+    def __init__(self, parent, scan):
         self.callbacks = []
         self.scan = scan
-        
-        #create the plotting window
-        bkgd_select_ax = plt.subplot2grid((3,2), (0,0), colspan=2)
-        bkgd_fit_ax = plt.subplot2grid((3,2), (1,0), colspan=2)
-        
-        bkgd_subtracted_ax = plt.subplot2grid((3,2), (2, 0), colspan=2)
+
+        # Build an explicit Figure (not via pyplot) so the canvas can be
+        # embedded as a wx widget inside `parent`.
+        self.figure = Figure()
+        self.canvas = FigureCanvas(parent, wx.ID_ANY, self.figure)
+
+        bkgd_select_ax = self.figure.add_subplot(3, 1, 1)
+        bkgd_fit_ax = self.figure.add_subplot(3, 1, 2)
+        bkgd_subtracted_ax = self.figure.add_subplot(3, 1, 3)
+
         self.plots = []
-        
+
         self.bkgd_selector = BackgroundRangeSelector(bkgd_select_ax)
         self.bkgd_selector.update(scan)
         self.plots.append(self.bkgd_selector)
-        
+
         self.bkgd_fit = BackgroundFitDisplay(bkgd_fit_ax)
         self.plots.append(self.bkgd_fit)
-        
+
         self.bkgd_subtracted_plot = BackgroundSubtractedDisplay(bkgd_subtracted_ax)
         self.plots.append(self.bkgd_subtracted_plot)
-        
+
     def get_current_scan(self):
         return self.scan
-    
-    def show(self):    
-        plt.show()
-        
+
     def register_callback(self, f):
         self.callbacks.append(f)
-             
+
     def update(self, scan):
-        
         wx.BeginBusyCursor()
         for p in self.plots:
             p.update(scan)
-        
-        plt.draw()
-        
+
+        self.canvas.draw_idle()
+
         for f in self.callbacks:
             f(scan)
 
