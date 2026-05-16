@@ -44,6 +44,9 @@ class DraggableLine:
         self.cidrelease = self.line.figure.canvas.mpl_connect('button_release_event', self.on_release)
         self.cidmotion = self.line.figure.canvas.mpl_connect('motion_notify_event', self.on_motion)           
 
+        print('h')
+        print(type(self.background))
+
 
     def disconnect(self):
         # disconnect all the stored connection ids
