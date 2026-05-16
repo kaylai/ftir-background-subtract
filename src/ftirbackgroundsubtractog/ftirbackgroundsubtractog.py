@@ -44,6 +44,9 @@ class DraggableLine:
         self.cidmotion = self.line.figure.canvas.mpl_connect('motion_notify_event', self.on_motion)           
         self.cidredraw = self.line.figure.canvas.mpl_connect('draw_event', self.on_redraw)
 
+        print('h')
+        print(type(self.background))
+
 
     def disconnect(self):
         #disconnect all the stored connection ids
@@ -64,7 +67,7 @@ class DraggableLine:
         self.press = x0, event.xdata, event.ydata
         DraggableLine.lock = self
 
-        # draw everything but the selected rectangle and store the pixel buffer
+        # # draw everything but the selected rectangle and store the pixel buffer
         canvas = self.line.figure.canvas
         axes = self.line.axes
         self.line.set_animated(True)
@@ -99,6 +102,8 @@ class DraggableLine:
         
         canvas = self.line.figure.canvas
         axes = self.line.axes        
+
+        print(type(self.background))
         
         # restore the background region
         canvas.restore_region(self.background)
@@ -146,7 +151,7 @@ class DraggableLine:
 
         # turn off the rect animation property and reset the background
         self.line.set_animated(False)
-        self.background = None
+        # self.background = None
 
         # redraw the full figure
         self.line.figure.canvas.draw()
@@ -176,26 +181,33 @@ class FileChooser(wx.Frame):
         
         self.file_hsizer.Add(self.filename_box,1,wx.ALIGN_CENTER_VERTICAL)
         self.file_hsizer.AddSpacer(5)
-        self.file_hsizer.Add(self.browse_button,0,wx.ALIGN_RIGHT)   
+        # self.file_hsizer.Add(self.browse_button,0,wx.ALIGN_RIGHT)   
+        self.file_hsizer.Add(self.browse_button,0)   
+
         
         self.main_sizer.AddSpacer(10)
         self.main_sizer.Add(wx.StaticText(self.top_panel, wx.ID_ANY, "Choose a file to open."),0,wx.ALIGN_CENTER_HORIZONTAL)
         self.main_sizer.AddSpacer(5)
         self.main_sizer.Add(wx.StaticText(self.top_panel,wx.ID_ANY,"Filename:"))
-        self.main_sizer.Add(self.file_hsizer,0,wx.ALIGN_CENTER_HORIZONTAL|wx.EXPAND)
+        # self.main_sizer.Add(self.file_hsizer,0,wx.ALIGN_CENTER_HORIZONTAL|wx.EXPAND)
+        self.main_sizer.Add(self.file_hsizer,0)
         self.main_sizer.AddSpacer(20)
         
         self.main_sizer.AddStretchSpacer()
         self.ok_button = wx.Button(self.top_panel, wx.ID_ANY, "Ok")
-        self.main_sizer.Add(self.ok_button,0,wx.ALIGN_RIGHT|wx.ALIGN_BOTTOM)  
+        # self.main_sizer.Add(self.ok_button,0,wx.ALIGN_RIGHT|wx.ALIGN_BOTTOM)  
+        self.main_sizer.Add(self.ok_button,0) 
         self.main_sizer.AddSpacer(5)
         
         self.top_panel.SetSizer(self.main_hsizer)
         self.main_hsizer.Fit(self)
         self.top_panel.SetAutoLayout(1)
+
+        self.Bind(wx.EVT_BUTTON, self.on_browse, self.browse_button)
+        self.Bind(wx.EVT_BUTTON, self.on_ok, self.ok_button)
         
-        wx.EVT_BUTTON(self, self.browse_button.GetId(), self.on_browse)
-        wx.EVT_BUTTON(self, self.ok_button.GetId(), self.on_ok)
+        # wx.EVT_BUTTON(self, self.browse_button.GetId(), self.on_browse)
+        # wx.EVT_BUTTON(self, self.ok_button.GetId(), self.on_ok)
                        
         
     def on_browse(self, evnt):
@@ -335,14 +347,22 @@ class BackgroundFittingControls(wx.Panel):
         self.apply_sizer.AddSpacer(5)
         self.vsizer.Add(self.apply_sizer,2,wx.ALIGN_CENTER_HORIZONTAL)
         
-        wx.EVT_BUTTON(self, self.get_lims_button.GetId(), self.on_get_lims)
-        wx.EVT_BUTTON(self, self.apply_button.GetId(), self.on_apply)
-        wx.EVT_BUTTON(self, self.suggest_button.GetId(), self.on_suggest)
-        wx.EVT_BUTTON(self, self.applysuggested_button.GetId(), self.on_applysuggested)
-        wx.EVT_BUTTON(self, self.suggestCO3_button.GetId(), self.on_suggestCO3)
-        wx.EVT_BUTTON(self, self.suggest4500_button.GetId(), self.on_suggest4500)
-        wx.EVT_BUTTON(self, self.suggest5200_button.GetId(), self.on_suggest5200)
-        wx.EVT_BUTTON(self, self.suggestCO3_2_button.GetId(), self.on_suggestCO3_2)
+        # wx.EVT_BUTTON(self, self.get_lims_button.GetId(), self.on_get_lims)
+        # wx.EVT_BUTTON(self, self.apply_button.GetId(), self.on_apply)
+        # wx.EVT_BUTTON(self, self.suggest_button.GetId(), self.on_suggest)
+        # wx.EVT_BUTTON(self, self.applysuggested_button.GetId(), self.on_applysuggested)
+        # wx.EVT_BUTTON(self, self.suggestCO3_button.GetId(), self.on_suggestCO3)
+        # wx.EVT_BUTTON(self, self.suggest4500_button.GetId(), self.on_suggest4500)
+        # wx.EVT_BUTTON(self, self.suggest5200_button.GetId(), self.on_suggest5200)
+        # wx.EVT_BUTTON(self, self.suggestCO3_2_button.GetId(), self.on_suggestCO3_2)
+        self.Bind(wx.EVT_BUTTON, self.on_get_lims, self.get_lims_button)
+        self.Bind(wx.EVT_BUTTON, self.on_apply, self.apply_button)
+        self.Bind(wx.EVT_BUTTON, self.on_suggest, self.suggest_button)
+        self.Bind(wx.EVT_BUTTON, self.on_applysuggested, self.applysuggested_button)
+        self.Bind(wx.EVT_BUTTON, self.on_suggestCO3, self.suggestCO3_button)
+        self.Bind(wx.EVT_BUTTON, self.on_suggest4500, self.suggest4500_button)
+        self.Bind(wx.EVT_BUTTON, self.on_suggest5200, self.suggest5200_button)
+        self.Bind(wx.EVT_BUTTON, self.on_suggestCO3_2, self.suggestCO3_2_button)
         self.SetSizer(self.vsizer)
         self.vsizer.Fit(self)
         self.SetAutoLayout(1)
@@ -516,7 +536,8 @@ class ControlWindow(wx.Frame):
         self.main_hsizer.Fit(self)
         self.top_panel.SetAutoLayout(1)
 
-        wx.EVT_CLOSE(self, self.on_close)
+        self.Bind(wx.EVT_CLOSE, self.on_close)
+        # wx.EVT_CLOSE(self, self.on_close)
         
         fig = plt.gcf()
         fig.canvas.mpl_connect('close_event', self.on_fig_close)
