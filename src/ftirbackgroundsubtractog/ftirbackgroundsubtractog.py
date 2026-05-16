@@ -27,9 +27,8 @@ class DraggableLine:
     
     lock = None
     
-    def __init__(self, x_pos, axis, linewidth=2.0, color='r', callback=None):
-        
-        self.line = axis.plot([x_pos]*2,axis.get_ylim(), linewidth=linewidth, color=color)[0]
+    def __init__(self, x_pos, axis, linewidth=2.0, color='r', callback=None):        
+        self.line = axis.axvline(x_pos, linewidth=linewidth, color=color)
 
         self.press = None
         self.background = None
@@ -38,26 +37,21 @@ class DraggableLine:
 
    
     def __connect(self):
-        #connect to all the events we need
+        # connect to all the events we need
         self.cidpress = self.line.figure.canvas.mpl_connect('button_press_event', self.on_press)
         self.cidrelease = self.line.figure.canvas.mpl_connect('button_release_event', self.on_release)
         self.cidmotion = self.line.figure.canvas.mpl_connect('motion_notify_event', self.on_motion)           
-        self.cidredraw = self.line.figure.canvas.mpl_connect('draw_event', self.on_redraw)
-
-        print('h')
-        print(type(self.background))
 
 
     def disconnect(self):
-        #disconnect all the stored connection ids
+        # disconnect all the stored connection ids
         self.line.figure.canvas.mpl_disconnect(self.cidpress)
         self.line.figure.canvas.mpl_disconnect(self.cidrelease)
         self.line.figure.canvas.mpl_disconnect(self.cidmotion)
-        self.line.figure.canvas.mpl_disconnect(self.cidredraw)
 
         
     def on_press(self, event):
-        #on button press we will see if the mouse is over us and store some data
+        # on button press we will see if the mouse is over us and store some data
         if event.inaxes != self.line.axes: return
         if DraggableLine.lock is not None: return
         contains, attrd = self.line.contains(event)
@@ -66,19 +60,6 @@ class DraggableLine:
         x0 = self.line.get_xdata()[0],
         self.press = x0, event.xdata, event.ydata
         DraggableLine.lock = self
-
-        # # draw everything but the selected rectangle and store the pixel buffer
-        canvas = self.line.figure.canvas
-        axes = self.line.axes
-        self.line.set_animated(True)
-        canvas.draw()
-        self.background = canvas.copy_from_bbox(self.line.axes.bbox)
-
-        # now redraw just the rectangle
-        axes.draw_artist(self.line)
-
-        # and blit just the redrawn area
-        canvas.blit(axes.bbox)
 
 
     def get_xpos(self):
@@ -94,67 +75,28 @@ class DraggableLine:
         """
         self.line.set_xdata([x_pos]*2)
         self.line.axes.redraw_in_frame()
-        
-    
-    def on_redraw(self, event):
-        #reset the line's ylims so that you can't zoom to outside the size of the line
-        self.line.set_ydata(self.line.axes.get_ylim())
-        
-        canvas = self.line.figure.canvas
-        axes = self.line.axes        
-
-        print(type(self.background))
-        
-        # restore the background region
-        canvas.restore_region(self.background)
-
-        # redraw just the current rectangle
-        axes.draw_artist(self.line)
-
-        # blit just the redrawn area
-        canvas.blit(axes.bbox)
     
     
     def on_motion(self, event):
         #on motion we will move the rect if the mouse is over us
-        if DraggableLine.lock is not self:
-            return
+        if DraggableLine.lock is not self: return
         if event.inaxes != self.line.axes: return
         x0, xpress, ypress = self.press
         dx = event.xdata - xpress
-        dy = event.ydata - ypress
 
         self.line.set_xdata([x0[0] + dx]*2)
-        self.line.set_ydata(self.line.axes.get_ylim())
         self.line.set_linestyle('--')
-
-        canvas = self.line.figure.canvas
-        axes = self.line.axes
-        # restore the background region
-        canvas.restore_region(self.background)
-
-        # redraw just the current rectangle
-        axes.draw_artist(self.line)
-
-        # blit just the redrawn area
-        canvas.blit(axes.bbox)
+        self.line.figure.canvas.draw_idle()
 
  
     def on_release(self, event):
         #on release we reset the press data
-        if DraggableLine.lock is not self:
-            return
+        if DraggableLine.lock is not self: return
         
         self.line.set_linestyle('-')
         self.press = None
         DraggableLine.lock = None
-
-        # turn off the rect animation property and reset the background
-        self.line.set_animated(False)
-        # self.background = None
-
-        # redraw the full figure
-        self.line.figure.canvas.draw()
+        self.line.figure.canvas.draw_idle()
         
         if self.callback is not None:
             self.callback(event.xdata)
@@ -230,7 +172,6 @@ class FileChooser(wx.Frame):
                     ofp.write(os.path.dirname(dialog.GetPath()))
             except:
                 pass
-    
 
             
     def on_ok(self, evnt):
@@ -281,6 +222,12 @@ class BackgroundFittingControls(wx.Panel):
         #define Fit Order text box
         self.fit_order_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.fit_order_txtbox = wx.TextCtrl(self, wx.ID_ANY)
+        
+        # size text boxes
+        for box in (self.lower_lim_txtbox, self.upper_lim_txtbox,
+            self.lower_excl_txtbox, self.upper_excl_txtbox,
+            self.fit_order_txtbox):
+                box.SetMinSize((80, -1))
         
         #define Apply and Apply suggested buttons
         self.apply_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -566,10 +513,11 @@ class ProcessedScan:
         self.angle_err = numpy.ones_like(wavenum)*5
         self.col_err = numpy.abs((intensity/100.0)*5)
         
-        self.bkgd_lowlim = wavenum[-1]
-        self.bkgd_highlim = wavenum[0]
-        self.excl_lowlim = numpy.median(wavenum)
-        self.excl_highlim = numpy.median(wavenum)
+        # hard code to suggested 3500 total H2O+OH peak
+        self.bkgd_lowlim = 2400
+        self.bkgd_highlim = 4000
+        self.excl_lowlim = 2590
+        self.excl_highlim = 3788
         
         #background fitting parameters
         self.bkgd_fit_order = bkgd_fit_order
@@ -723,19 +671,21 @@ class BackgroundRangeSelector:
         self.plot = None
     
     def update(self, scan):
-        self.ax.cla()
-        if self.lim_line1 is None:
-                self.lim_line1 = DraggableLine(scan.bkgd_lowlim, self.ax, color='g')
-                self.lim_line2 = DraggableLine(scan.bkgd_highlim, self.ax, color='g')
-                self.excl_line1 = DraggableLine(scan.excl_lowlim, self.ax, color='r')
-                self.excl_line2 = DraggableLine(scan.excl_highlim, self.ax, color='r')
-        else:
-            self.lim_line1.set_xpos(scan.bkgd_lowlim)
-            self.lim_line2.set_xpos(scan.bkgd_highlim)
-            self.excl_line1.set_xpos(scan.excl_lowlim)
-            self.excl_line2.set_xpos(scan.excl_highlim)
+        if self.lim_line1 is not None:
+            self.lim_line1.disconnect()
+            self.lim_line2.disconnect()
+            self.excl_line1.disconnect()
+            self.excl_line2.disconnect()
 
-        self.plot = self.ax.plot(scan.angles, scan.col_amount,'b-')
+        self.ax.cla()
+        self.ax.invert_xaxis()
+
+        self.plot = self.ax.plot(scan.angles, scan.col_amount, 'b-')
+
+        self.lim_line1 = DraggableLine(scan.bkgd_lowlim, self.ax, color='g')
+        self.lim_line2 = DraggableLine(scan.bkgd_highlim, self.ax, color='g')
+        self.excl_line1 = DraggableLine(scan.excl_lowlim, self.ax, color='r')
+        self.excl_line2 = DraggableLine(scan.excl_highlim, self.ax, color='r')
         
     def get_lims(self):
         pos1 = self.lim_line1.get_xpos()
@@ -753,6 +703,7 @@ class PlotManager:
     def __init__(self,scan):
         self.callbacks = []
         self.scan = scan
+        
         #create the plotting window
         bkgd_select_ax = plt.subplot2grid((3,2), (0,0), colspan=2)
         bkgd_fit_ax = plt.subplot2grid((3,2), (1,0), colspan=2)
