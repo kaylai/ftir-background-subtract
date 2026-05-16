@@ -4,7 +4,8 @@ project_name = "FTIR Background Subtract OG"
 bundle = "com.example"
 version = "0.0.1"
 url = "https://example.com/ftirbackgroundsubtractog"
-license = "MIT license"
+license = "MIT"
+license-files = ["LICENSE"]
 author = "Kayla Iacovino, Nial Peters"
 author_email = "kaylaiacovino@gmail.com"
 
