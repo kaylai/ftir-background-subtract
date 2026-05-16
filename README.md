@@ -1,38 +1,43 @@
 # ftir-background-subtract
 
+## README for refactor attempts
+As of May 2026 - I've reset the messy master branch to a prior state and have moved separate attempts to modernize the app using different frameworks to their own dedicated branch. Look to those for the latest WIP's.
+
 ## README for WIP Heroku app
+
 ### 20 December 2022
+
 Can run locally. Uses plotly to plot up a csv file properly. TODO: use plotly buttons to do background subtraction.
 
 ## Original README for wxPython app
 
 **NOTE!** To run on modern mac, must run as:
+
 ```sh
 pythonw bkgd_subtract.py
 ```
 
-README FOR FTIR BACKGROUND SUBTRACT TOOL 
+README FOR FTIR BACKGROUND SUBTRACT TOOL
 Copyright Nial Peters & Kayla Iacovino, 2021
 
 Version 1.2.0
 Released September 2, 2021
 Contact: kaylaiacovino@gmail.com
 
-RUNNING THE SCRIPT: 
-Make sure you have the correct dependencies 
-installed before running the script: 
-Python 
+RUNNING THE SCRIPT:
+Make sure you have the correct dependencies
+installed before running the script:
+Python
 wxPython
-matplotlib 
-pylab 
+matplotlib
+pylab
 numpy
 
 Navigate to the directory where bkgd_subtract.py is located. Type
 "python bkgd_subtract.py" into a terminal. If you have all the
 dependencies installed properly, it should run the program.
 
-
-USING THE PROGRAM: 
+USING THE PROGRAM:
 Chose your file in the file chooser window. Your
 spectrum file should be two columns with wavenumber and absorbances (see
 the example file test-spectrum.CSV).
@@ -64,15 +69,13 @@ not need to click "Get Limits" before clicking "Apply".
 The Fit Order is the order of the polynomial. We suggest using fit
 orders from 1-5.
 
-
 THE PLOTS:
 There are three plots shown: (1) Your data [top]; (2) The fit to your data [center]; (3) The background-corrected data [lower].
 
 The top plot contains the data loaded from your CSV file and should never be blank. Upon opening the program, the central and lower plots will be blank. Once a background is drawn, the central and lower plots will be populated.
 
-
 A NOTE FOR MAC USERS:
-For some reason, the standard matplotlib toolbar (containing such useful features as zoom, pan, save image) does not appear on Mac. You can use standard marplotlib keyboard shortcuts to get around this: 
+For some reason, the standard matplotlib toolbar (containing such useful features as zoom, pan, save image) does not appear on Mac. You can use standard marplotlib keyboard shortcuts to get around this:
 
 Home/Reset					        	h or r
 Back						            	c or left arrow or backspace
@@ -86,5 +89,3 @@ Constrain pan/zoom to y axis	hold y
 Preserve aspect ratio			    hold CONTROL
 Toggle grid						        g
 Toggle y axis scale (log/lin)	l
-
-
