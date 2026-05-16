@@ -8,6 +8,13 @@ __pycache__/
 build/
 dist/
 
+# Virtual environments
+.venv/
+venv/
+
+# Briefcase / BeeWare build output
+.briefcase/
+
 # Editor / IDE
 .project
 .pydevproject
