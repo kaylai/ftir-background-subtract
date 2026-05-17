@@ -1,10 +1,7 @@
-from ftirbackgroundsubtractog.ftirbackgroundsubtractog import *
+from ftirbackgroundsubtractog.ftirbackgroundsubtractog import ControlWindow
 import wx
 
 if __name__ == '__main__':
     app = wx.App()
-
-    f = FileChooser()
-    f.CenterOnScreen()
-    f.Show()
+    ControlWindow(scan=None, title="FTIR Background Subtract")
     app.MainLoop()
