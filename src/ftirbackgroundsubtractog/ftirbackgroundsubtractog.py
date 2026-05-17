@@ -399,6 +399,7 @@ class ControlWindow(wx.Frame):
         scan = ProcessedScan(wavenum, intensity)
         self.plot_manager.scan = scan # set the PlotManager's scan attr
         self.plot_manager.bkgd_selector.update(scan)
+        self.plot_manager.figure.tight_layout()
         self.plot_manager.canvas.draw_idle()
         self.controls.set_editable()
         self.controls.update(scan) # populate default text box values
@@ -562,6 +563,8 @@ class BackgroundFitDisplay:
     
     def update(self, scan):
         self.ax.clear()
+        self.ax.set_xlabel(r"Wavenumber (cm$^{-1}$)")
+        self.ax.set_ylabel("Absorbance")
         scan.plot_bkgd_fit(self.ax)
 
         low_idx = numpy.argmin(numpy.abs(scan.angles-scan.bkgd_lowlim))
@@ -569,7 +572,7 @@ class BackgroundFitDisplay:
 
         wavenum = scan.angles[low_idx:high_idx]
         intensity = scan.col_amount[low_idx:high_idx]
-        
+
         self.ax.plot(wavenum, intensity, 'k-')
         self.ax.invert_xaxis()
         
@@ -577,17 +580,70 @@ class BackgroundFitDisplay:
 class BackgroundSubtractedDisplay:
     def __init__(self, ax):
         self.ax = ax
-    
-    def update(self, scan):
-        self.ax.clear()
-        low_idx = numpy.argmin(numpy.abs(scan.angles-scan.bkgd_lowlim))
-        high_idx = numpy.argmin(numpy.abs(scan.angles-scan.bkgd_highlim))
-        wavenum = scan.angles[low_idx:high_idx]
-        intens = scan.col_amount[low_idx:high_idx] - scan.bkgd_func(wavenum)
-        
-        self.ax.plot(wavenum, intens, 'g-')
-        self.ax.axhline(y=0, color = 'r')
         self.ax.invert_xaxis()
+        self.wavenum = None
+        self.intens = None
+        self.markers = []   # list of (DraggableLine, annotation)
+        self.ax.figure.canvas.mpl_connect('button_press_event', self._on_click)
+
+    def update(self, scan):
+        # Disconnect old markers' event handlers; ax.clear() kills the artists.
+        for marker, _ in self.markers:
+            marker.disconnect()
+        self.markers = []
+
+        self.ax.clear()
+        self.ax.invert_xaxis()
+        self.ax.set_xlabel(r"Wavenumber (cm$^{-1}$)")
+        self.ax.set_ylabel("Absorbance (background subtracted)")
+
+        low_idx = numpy.argmin(numpy.abs(scan.angles - scan.bkgd_lowlim))
+        high_idx = numpy.argmin(numpy.abs(scan.angles - scan.bkgd_highlim))
+        self.wavenum = scan.angles[low_idx:high_idx]
+        self.intens = scan.col_amount[low_idx:high_idx] - scan.bkgd_func(self.wavenum)
+
+        self.ax.plot(self.wavenum, self.intens, 'g-')
+        self.ax.axhline(y=0, color='r')
+
+    def _on_click(self, event):
+        # Only respond to left-clicks in our axes, after Apply has populated data.
+        if event.inaxes is not self.ax:
+            return
+        if self.wavenum is None or event.xdata is None:
+            return
+        if event.button != 1:
+            return
+
+        # If the click lands on an existing marker, do nothing — DraggableLine's
+        # own on_press will take over for the drag.
+        for marker, _ in self.markers:
+            contains, _ = marker.line.contains(event)
+            if contains:
+                return
+
+        # Add a new draggable marker at the closest data point.
+        idx = numpy.argmin(numpy.abs(self.wavenum - event.xdata))
+        x = self.wavenum[idx]
+        y = self.intens[idx]
+
+        marker = DraggableLine(x, self.ax, color='k', linewidth=1)
+        label = self.ax.annotate(f"{y:.3f}", xy=(x, y),
+                                 xytext=(5, 5), textcoords='offset points',
+                                 fontsize=9)
+        # Wire the drag-release callback once both objects exist.
+        marker.callback = lambda new_x: self._update_marker(marker, label, new_x)
+        self.markers.append((marker, label))
+        self.ax.figure.canvas.draw_idle()
+
+    def _update_marker(self, marker, label, new_x):
+        # Snap line and label to the nearest data point and refresh the y-value.
+        idx = numpy.argmin(numpy.abs(self.wavenum - new_x))
+        x = self.wavenum[idx]
+        y = self.intens[idx]
+        marker.line.set_xdata([x, x])
+        label.xy = (x, y)
+        label.set_text(f"{y:.3f}")
+        self.ax.figure.canvas.draw_idle()
 
 class BackgroundRangeSelector:
     def __init__(self, ax):
@@ -607,6 +663,8 @@ class BackgroundRangeSelector:
 
         self.ax.cla()
         self.ax.invert_xaxis()
+        self.ax.set_xlabel(r"Wavenumber (cm$^{-1}$)")
+        self.ax.set_ylabel("Absorbance")
 
         self.plot = self.ax.plot(scan.angles, scan.col_amount, 'b-')
 
@@ -673,6 +731,8 @@ class PlotManager:
         for p in self.plots:
             p.update(scan)
 
+        # Re-flow subplots so the now-populated axis labels don't overlap.
+        self.figure.tight_layout()
         self.canvas.draw_idle()
 
         for f in self.callbacks:
