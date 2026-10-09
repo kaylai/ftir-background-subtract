@@ -741,16 +741,28 @@ class PlotManager:
         wx.EndBusyCursor()
 
 def load_ftir_file(filename):
+    # Source - https://stackoverflow.com/a/69817138
+    # Posted by Corralien, modified by community. See post 'Timeline' for change history
+    # Retrieved 2026-10-09, License - CC BY-SA 4.0
+
+    def find_delimiter(filename):
+        sniffer = csv.Sniffer()
+        with open(filename) as fp:
+            delimiter = sniffer.sniff(fp.read(5000)).delimiter
+        return delimiter
 
     with open(filename, "rt") as f:
-        reader = csv.reader(f, dialect="excel")
+        delimiter = find_delimiter(filename)
+        reader = csv.reader(f, dialect="excel", delimiter=delimiter)
         wavenumber = []
         absorbance = []
 
         for line in reader:
-            wavenumber.append(float(line[0]))
-            absorbance.append(float(line[1]))
-        
+            try:
+                wavenumber.append(float(line[0]))
+                absorbance.append(float(line[1]))
+            except:
+                pass
         return numpy.array(wavenumber), numpy.array(absorbance)
 
 if __name__ == '__main__':
