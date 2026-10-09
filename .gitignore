@@ -7,6 +7,7 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+*.dist-info
 
 # Virtual environments
 .venv/
@@ -14,6 +15,8 @@ venv/
 
 # Briefcase / BeeWare build output
 .briefcase/
+logs/
+*.log
 
 # Editor / IDE
 .project

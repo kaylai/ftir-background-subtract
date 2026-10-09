@@ -1,10 +1,12 @@
 import wx
+import wx.lib.intctrl
 import sys
 import os.path
 import pickle
 import matplotlib
 matplotlib.use('wxAgg') #bad things happen if you don't use the wxAgg backend
-import pylab as plt
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 import numpy
 import math
 import csv
@@ -27,9 +29,8 @@ class DraggableLine:
     
     lock = None
     
-    def __init__(self, x_pos, axis, linewidth=2.0, color='r', callback=None):
-        
-        self.line = axis.plot([x_pos]*2,axis.get_ylim(), linewidth=linewidth, color=color)[0]
+    def __init__(self, x_pos, axis, linewidth=2.0, color='r', callback=None):        
+        self.line = axis.axvline(x_pos, linewidth=linewidth, color=color)
 
         self.press = None
         self.background = None
@@ -38,23 +39,24 @@ class DraggableLine:
 
    
     def __connect(self):
-        #connect to all the events we need
+        # connect to all the events we need
         self.cidpress = self.line.figure.canvas.mpl_connect('button_press_event', self.on_press)
         self.cidrelease = self.line.figure.canvas.mpl_connect('button_release_event', self.on_release)
         self.cidmotion = self.line.figure.canvas.mpl_connect('motion_notify_event', self.on_motion)           
-        self.cidredraw = self.line.figure.canvas.mpl_connect('draw_event', self.on_redraw)
+
+        print('h')
+        print(type(self.background))
 
 
     def disconnect(self):
-        #disconnect all the stored connection ids
+        # disconnect all the stored connection ids
         self.line.figure.canvas.mpl_disconnect(self.cidpress)
         self.line.figure.canvas.mpl_disconnect(self.cidrelease)
         self.line.figure.canvas.mpl_disconnect(self.cidmotion)
-        self.line.figure.canvas.mpl_disconnect(self.cidredraw)
 
         
     def on_press(self, event):
-        #on button press we will see if the mouse is over us and store some data
+        # on button press we will see if the mouse is over us and store some data
         if event.inaxes != self.line.axes: return
         if DraggableLine.lock is not None: return
         contains, attrd = self.line.contains(event)
@@ -63,19 +65,6 @@ class DraggableLine:
         x0 = self.line.get_xdata()[0],
         self.press = x0, event.xdata, event.ydata
         DraggableLine.lock = self
-
-        # draw everything but the selected rectangle and store the pixel buffer
-        canvas = self.line.figure.canvas
-        axes = self.line.axes
-        self.line.set_animated(True)
-        canvas.draw()
-        self.background = canvas.copy_from_bbox(self.line.axes.bbox)
-
-        # now redraw just the rectangle
-        axes.draw_artist(self.line)
-
-        # and blit just the redrawn area
-        canvas.blit(axes.bbox)
 
 
     def get_xpos(self):
@@ -91,152 +80,31 @@ class DraggableLine:
         """
         self.line.set_xdata([x_pos]*2)
         self.line.axes.redraw_in_frame()
-        
-    
-    def on_redraw(self, event):
-        #reset the line's ylims so that you can't zoom to outside the size of the line
-        self.line.set_ydata(self.line.axes.get_ylim())
-        
-        canvas = self.line.figure.canvas
-        axes = self.line.axes        
-        
-        # restore the background region
-        canvas.restore_region(self.background)
-
-        # redraw just the current rectangle
-        axes.draw_artist(self.line)
-
-        # blit just the redrawn area
-        canvas.blit(axes.bbox)
     
     
     def on_motion(self, event):
         #on motion we will move the rect if the mouse is over us
-        if DraggableLine.lock is not self:
-            return
+        if DraggableLine.lock is not self: return
         if event.inaxes != self.line.axes: return
         x0, xpress, ypress = self.press
         dx = event.xdata - xpress
-        dy = event.ydata - ypress
 
         self.line.set_xdata([x0[0] + dx]*2)
-        self.line.set_ydata(self.line.axes.get_ylim())
         self.line.set_linestyle('--')
-
-        canvas = self.line.figure.canvas
-        axes = self.line.axes
-        # restore the background region
-        canvas.restore_region(self.background)
-
-        # redraw just the current rectangle
-        axes.draw_artist(self.line)
-
-        # blit just the redrawn area
-        canvas.blit(axes.bbox)
+        self.line.figure.canvas.draw_idle()
 
  
     def on_release(self, event):
         #on release we reset the press data
-        if DraggableLine.lock is not self:
-            return
+        if DraggableLine.lock is not self: return
         
         self.line.set_linestyle('-')
         self.press = None
         DraggableLine.lock = None
-
-        # turn off the rect animation property and reset the background
-        self.line.set_animated(False)
-        self.background = None
-
-        # redraw the full figure
-        self.line.figure.canvas.draw()
+        self.line.figure.canvas.draw_idle()
         
         if self.callback is not None:
             self.callback(event.xdata)
-
-
-
-class FileChooser(wx.Frame):
-    def __init__(self):
-        
-        wx.Frame.__init__(self, None, wx.ID_ANY,"Open file - FTIR Background Subtract")
-        self.top_panel = wx.Panel(self, wx.ID_ANY)
-        self.main_sizer = wx.BoxSizer(wx.VERTICAL)
-        self.main_hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.main_hsizer.AddSpacer(5)
-        self.main_hsizer.Add(self.main_sizer,1,wx.EXPAND)
-        self.main_hsizer.AddSpacer(5)
-                
-        self.main_sizer.AddSpacer(5)
-        
-        self.filename_box = wx.TextCtrl(self.top_panel, wx.ID_ANY)
-        self.filename_box.SetMinSize((350,self.filename_box.GetSize()[1]))
-        self.browse_button = wx.Button(self.top_panel, wx.ID_ANY, "Browse")
-        self.file_hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        
-        self.file_hsizer.Add(self.filename_box,1,wx.ALIGN_CENTER_VERTICAL)
-        self.file_hsizer.AddSpacer(5)
-        self.file_hsizer.Add(self.browse_button,0,wx.ALIGN_RIGHT)   
-        
-        self.main_sizer.AddSpacer(10)
-        self.main_sizer.Add(wx.StaticText(self.top_panel, wx.ID_ANY, "Choose a file to open."),0,wx.ALIGN_CENTER_HORIZONTAL)
-        self.main_sizer.AddSpacer(5)
-        self.main_sizer.Add(wx.StaticText(self.top_panel,wx.ID_ANY,"Filename:"))
-        self.main_sizer.Add(self.file_hsizer,0,wx.ALIGN_CENTER_HORIZONTAL|wx.EXPAND)
-        self.main_sizer.AddSpacer(20)
-        
-        self.main_sizer.AddStretchSpacer()
-        self.ok_button = wx.Button(self.top_panel, wx.ID_ANY, "Ok")
-        self.main_sizer.Add(self.ok_button,0,wx.ALIGN_RIGHT|wx.ALIGN_BOTTOM)  
-        self.main_sizer.AddSpacer(5)
-        
-        self.top_panel.SetSizer(self.main_hsizer)
-        self.main_hsizer.Fit(self)
-        self.top_panel.SetAutoLayout(1)
-        
-        wx.EVT_BUTTON(self, self.browse_button.GetId(), self.on_browse)
-        wx.EVT_BUTTON(self, self.ok_button.GetId(), self.on_ok)
-                       
-        
-    def on_browse(self, evnt):
-        default_dir = None
-        try:
-            with open(os.path.normpath(os.path.expanduser('~/.bkgd_subtract_dir')),'r') as ifp:
-                default_dir = ifp.read()       
-        except:
-            pass
-        
-        if default_dir is not None and os.path.isdir(default_dir):
-            dialog = wx.FileDialog(self, "Choose input file",default_dir)
-        else:
-            dialog = wx.FileDialog(self, "Choose input file")
-        
-        if dialog.ShowModal() != wx.CANCEL:
-            self.filename_box.SetValue(dialog.GetPath())
-            try:
-                with open(os.path.normpath(os.path.expanduser('~/.bkgd_subtract_dir')),'w') as ofp:
-                    ofp.write(os.path.dirname(dialog.GetPath()))
-            except:
-                pass
-    
-
-            
-    def on_ok(self, evnt):
-        filename = self.filename_box.GetValue()
-        
-        if not os.path.exists(filename):
-            wx.MessageBox("File does not exist!", "ICA Inspect", wx.ICON_ERROR)
-            return
-             
-        wx.YieldIfNeeded()
-        wavenum, intensity = load_ftir_file(filename)
-        print("loaded ",filename)
-        scan = ProcessedScan(wavenum, intensity)
-        
-        self.p = PlotManager(scan)    
-        ctrl_win = ControlWindow(self.p, os.path.basename(filename)+" - FTIR Background Subtract")
-        self.p.show()
-        self.Destroy()
 
 
 class BackgroundFittingControls(wx.Panel):
@@ -247,16 +115,15 @@ class BackgroundFittingControls(wx.Panel):
         #define vsizer
         self.vsizer = wx.BoxSizer(wx.VERTICAL)
         
-        #define limit text boxes
+        #define limit text boxes (integer-only)
         self.lims_hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.lower_lim_txtbox = wx.TextCtrl(self, wx.ID_ANY)
-        self.upper_lim_txtbox = wx.TextCtrl(self, wx.ID_ANY)
-        
-        #define exclude limit text boxes and Get Limits button
+        self.lower_lim_txtbox = wx.lib.intctrl.IntCtrl(self, wx.ID_ANY, value=0)
+        self.upper_lim_txtbox = wx.lib.intctrl.IntCtrl(self, wx.ID_ANY, value=0)
+
+        #define exclude limit text boxes and Get Limits button (integer-only)
         self.excl_hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.lower_excl_txtbox = wx.TextCtrl(self, wx.ID_ANY)
-        self.upper_excl_txtbox = wx.TextCtrl(self, wx.ID_ANY)
-        self.get_lims_button = wx.Button(self, wx.ID_ANY, "Get Limits")   
+        self.lower_excl_txtbox = wx.lib.intctrl.IntCtrl(self, wx.ID_ANY, value=0)
+        self.upper_excl_txtbox = wx.lib.intctrl.IntCtrl(self, wx.ID_ANY, value=0)
 
         #define suggestion buttons
         self.suggestions = wx.BoxSizer(wx.HORIZONTAL)
@@ -268,12 +135,17 @@ class BackgroundFittingControls(wx.Panel):
         
         #define Fit Order text box
         self.fit_order_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.fit_order_txtbox = wx.TextCtrl(self, wx.ID_ANY)
+        self.fit_order_txtbox = wx.SpinCtrl(self, wx.ID_ANY, min=1, max=10, initial=1)
         
-        #define Apply and Apply suggested buttons
+        # size text boxes
+        for box in (self.lower_lim_txtbox, self.upper_lim_txtbox,
+            self.lower_excl_txtbox, self.upper_excl_txtbox,
+            self.fit_order_txtbox):
+                box.SetMinSize((80, -1))
+        
+        #define Apply button
         self.apply_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.apply_button = wx.Button(self, wx.ID_ANY, "Apply")
-        self.applysuggested_button = wx.Button(self, wx.ID_ANY, "Apply Suggested")
         
         #Add Limit text boxes and buttons
         self.lims_hsizer.AddSpacer(5)
@@ -283,7 +155,6 @@ class BackgroundFittingControls(wx.Panel):
         self.lims_hsizer.Add(wx.StaticText(self, wx.ID_ANY,"Upper Limit:"),0, wx.ALIGN_CENTER_VERTICAL)
         self.lims_hsizer.Add(self.upper_lim_txtbox,0, wx.ALIGN_CENTER_VERTICAL)
         self.lims_hsizer.AddSpacer(10)
-        self.lims_hsizer.Add(self.get_lims_button,0, wx.ALIGN_CENTER_VERTICAL)
         self.lims_hsizer.AddSpacer(10)
         self.vsizer.Add(self.lims_hsizer,1,wx.ALIGN_CENTER_HORIZONTAL)
         
@@ -304,7 +175,6 @@ class BackgroundFittingControls(wx.Panel):
         #self.fit_order_sizer.AddSpacer(30)
         #self.fit_order_sizer.Add(self.apply_button,0,wx.ALIGN_CENTER_VERTICAL)
         #self.fit_order_sizer.AddSpacer(10)
-        #self.fit_order_sizer.Add(self.applysuggested_button,0,wx.ALIGN_CENTER_VERTICAL)
         self.vsizer.AddSpacer(5)
         self.vsizer.Add(self.fit_order_sizer,0,wx.ALIGN_CENTER_HORIZONTAL)
         
@@ -327,49 +197,89 @@ class BackgroundFittingControls(wx.Panel):
         self.suggestions.AddSpacer(10) 
         self.vsizer.Add(self.suggestions,1,wx.ALIGN_CENTER_HORIZONTAL)
         
-        #Add Apply and Apply Suggested buttons
+        #Add Apply buttons
         self.apply_sizer.AddSpacer(5)
         self.apply_sizer.Add(self.apply_button,0,wx.ALIGN_CENTER_VERTICAL)
         self.apply_sizer.AddSpacer(5)
-        self.apply_sizer.Add(self.applysuggested_button,0,wx.ALIGN_CENTER_VERTICAL)
         self.apply_sizer.AddSpacer(5)
         self.vsizer.Add(self.apply_sizer,2,wx.ALIGN_CENTER_HORIZONTAL)
         
-        wx.EVT_BUTTON(self, self.get_lims_button.GetId(), self.on_get_lims)
-        wx.EVT_BUTTON(self, self.apply_button.GetId(), self.on_apply)
-        wx.EVT_BUTTON(self, self.suggest_button.GetId(), self.on_suggest)
-        wx.EVT_BUTTON(self, self.applysuggested_button.GetId(), self.on_applysuggested)
-        wx.EVT_BUTTON(self, self.suggestCO3_button.GetId(), self.on_suggestCO3)
-        wx.EVT_BUTTON(self, self.suggest4500_button.GetId(), self.on_suggest4500)
-        wx.EVT_BUTTON(self, self.suggest5200_button.GetId(), self.on_suggest5200)
-        wx.EVT_BUTTON(self, self.suggestCO3_2_button.GetId(), self.on_suggestCO3_2)
+        # wx.EVT_BUTTON(self, self.apply_button.GetId(), self.on_apply)
+        # wx.EVT_BUTTON(self, self.suggest_button.GetId(), self.on_suggest)
+        # wx.EVT_BUTTON(self, self.suggestCO3_button.GetId(), self.on_suggestCO3)
+        # wx.EVT_BUTTON(self, self.suggest4500_button.GetId(), self.on_suggest4500)
+        # wx.EVT_BUTTON(self, self.suggest5200_button.GetId(), self.on_suggest5200)
+        # wx.EVT_BUTTON(self, self.suggestCO3_2_button.GetId(), self.on_suggestCO3_2)
+        self.Bind(wx.EVT_BUTTON, self.on_apply, self.apply_button)
+        self.Bind(wx.EVT_BUTTON, self.on_suggest, self.suggest_button)
+        self.Bind(wx.EVT_BUTTON, self.on_suggestCO3, self.suggestCO3_button)
+        self.Bind(wx.EVT_BUTTON, self.on_suggest4500, self.suggest4500_button)
+        self.Bind(wx.EVT_BUTTON, self.on_suggest5200, self.suggest5200_button)
+        self.Bind(wx.EVT_BUTTON, self.on_suggestCO3_2, self.suggestCO3_2_button)
         self.SetSizer(self.vsizer)
         self.vsizer.Fit(self)
         self.SetAutoLayout(1)
-        self.update(self.plot_manager.get_current_scan())
+        scan = self.plot_manager.get_current_scan()
+        if scan is not None:
+            self.update(scan)
         self.plot_manager.register_callback(self.update)
         
-    def on_apply(self,evt):
-        self.on_get_lims(None)
-        wx.BeginBusyCursor()
-        scan = self.plot_manager.get_current_scan()
-        scan.manual_bkgd = True
-        scan.bkgd_lowlim = float(self.lower_lim_txtbox.GetValue())
-        scan.bkgd_highlim = float(self.upper_lim_txtbox.GetValue())
-        scan.excl_lowlim = float(self.lower_excl_txtbox.GetValue())
-        scan.excl_highlim = float(self.upper_excl_txtbox.GetValue())
+        # register auto-updating text boxes as user drags lines
+        self.plot_manager.bkgd_selector.on_drag = self.on_line_drag
         
-        scan.bkgd_fit_order = int(self.fit_order_txtbox.GetValue())
-        scan.calculate()
-        self.plot_manager.update(scan)
-        wx.EndBusyCursor()
+        # Start disabled until a file is loaded.
+        self.set_non_editable()
     
-    def update(self,scan):        
-        
-        self.fit_order_txtbox.ChangeValue(str(scan.bkgd_fit_order))
+    def _read_inputs(self):
+        """
+        Read and validate the four limit boxes. Returns a dict or raises ValueError.
+        IntCtrl guarantees the values are already ints — no parsing needed.
+        """
+        lo = self.lower_lim_txtbox.GetValue()
+        hi = self.upper_lim_txtbox.GetValue()
+        excl_lo = self.lower_excl_txtbox.GetValue()
+        excl_hi = self.upper_excl_txtbox.GetValue()
 
-        self.lower_lim_txtbox.ChangeValue(str(round(scan.bkgd_lowlim,2)))
-        self.upper_lim_txtbox.ChangeValue(str(round(scan.bkgd_highlim,2)))
+        if lo >= hi:
+            raise ValueError("Lower limit must be less than upper limit")
+        if excl_lo > excl_hi:
+            raise ValueError("Exclude lower must be ≤ exclude upper")
+
+        return {
+            "bkgd_lowlim": lo,
+            "bkgd_highlim": hi,
+            "excl_lowlim": excl_lo,
+            "excl_highlim": excl_hi,
+            "bkgd_fit_order": self.fit_order_txtbox.GetValue(),
+        }
+    
+    def on_line_drag(self):
+        self.on_get_lims(None)
+        
+    def on_apply(self, evt):
+        try:
+            values = self._read_inputs()
+        except ValueError as e:
+            wx.MessageBox(str(e), "Invalid input", wx.OK | wx.ICON_ERROR)
+            return
+
+        wx.BeginBusyCursor()
+        try:
+            scan = self.plot_manager.get_current_scan()
+            scan.manual_bkgd = True
+            for attr, val in values.items():
+                setattr(scan, attr, val)
+            scan.calculate()
+            self.plot_manager.update(scan)
+        finally:
+            wx.EndBusyCursor()
+    
+    def update(self, scan):
+        self.fit_order_txtbox.SetValue(scan.bkgd_fit_order)
+        self.lower_lim_txtbox.SetValue(int(round(scan.bkgd_lowlim)))
+        self.upper_lim_txtbox.SetValue(int(round(scan.bkgd_highlim)))
+        self.lower_excl_txtbox.SetValue(int(round(scan.excl_lowlim)))
+        self.upper_excl_txtbox.SetValue(int(round(scan.excl_highlim)))
         self.set_editable()
     
     
@@ -377,10 +287,8 @@ class BackgroundFittingControls(wx.Panel):
         self.lower_lim_txtbox.Disable()
         self.upper_lim_txtbox.Disable()
         self.fit_order_txtbox.Disable()
-        self.get_lims_button.Disable()
         self.apply_button.Disable()
         self.suggest_button.Disable()
-        self.applysuggested_button.Disable()
         self.suggestCO3_button.Disable()
         self.suggest4500_button.Disable()
         self.suggest5200_button.Disable()
@@ -391,10 +299,8 @@ class BackgroundFittingControls(wx.Panel):
         self.lower_lim_txtbox.Enable()
         self.upper_lim_txtbox.Enable()
         self.fit_order_txtbox.Enable()
-        self.get_lims_button.Enable()
         self.apply_button.Enable()
         self.suggest_button.Enable()
-        self.applysuggested_button.Enable()
         self.suggestCO3_button.Enable()
         self.suggest4500_button.Enable()
         self.suggest5200_button.Enable()
@@ -403,136 +309,129 @@ class BackgroundFittingControls(wx.Panel):
     def on_get_lims(self, evt):
         
         lower_lim, upper_lim = self.plot_manager.bkgd_selector.get_lims()
-        
-        self.lower_lim_txtbox.ChangeValue(str(round(lower_lim,2)))
-        self.upper_lim_txtbox.ChangeValue(str(round(upper_lim,2)))
-        
-        lower_lim, upper_lim = self.plot_manager.bkgd_selector.get_excl_lims()       
-        self.lower_excl_txtbox.ChangeValue(str(round(lower_lim,2)))
-        self.upper_excl_txtbox.ChangeValue(str(round(upper_lim,2)))
+        self.lower_lim_txtbox.SetValue(int(round(lower_lim)))
+        self.upper_lim_txtbox.SetValue(int(round(upper_lim)))
+
+        lower_lim, upper_lim = self.plot_manager.bkgd_selector.get_excl_lims()
+        self.lower_excl_txtbox.SetValue(int(round(lower_lim)))
+        self.upper_excl_txtbox.SetValue(int(round(upper_lim)))
 
     def on_suggest(self, evt):
-
-        lower_lim, upper_lim = self.plot_manager.bkgd_selector.get_lims()
-
-        self.lower_lim_txtbox.ChangeValue(str(2400))
-        self.upper_lim_txtbox.ChangeValue(str(4000))
-
-        lower_lim, upper_lim = self.plot_manager.bkgd_selector.get_excl_lims()       
-        self.lower_excl_txtbox.ChangeValue(str(2590))
-        self.upper_excl_txtbox.ChangeValue(str(3788))
-
-        self.fit_order_txtbox.ChangeValue(str(1))
+        self.lower_lim_txtbox.SetValue(2400)
+        self.upper_lim_txtbox.SetValue(4000)
+        self.lower_excl_txtbox.SetValue(2590)
+        self.upper_excl_txtbox.SetValue(3788)
+        self.fit_order_txtbox.SetValue(1)
 
     def on_suggestCO3(self, evt):
-    
-        lower_lim, upper_lim = self.plot_manager.bkgd_selector.get_lims()
-
-        self.lower_lim_txtbox.ChangeValue(str(1242))
-        self.upper_lim_txtbox.ChangeValue(str(2038))
-
-        lower_lim, upper_lim = self.plot_manager.bkgd_selector.get_excl_lims()       
-        self.lower_excl_txtbox.ChangeValue(str(1362))
-        self.upper_excl_txtbox.ChangeValue(str(1770))
-
-        self.fit_order_txtbox.ChangeValue(str(3))
+        self.lower_lim_txtbox.SetValue(1242)
+        self.upper_lim_txtbox.SetValue(2038)
+        self.lower_excl_txtbox.SetValue(1362)
+        self.upper_excl_txtbox.SetValue(1770)
+        self.fit_order_txtbox.SetValue(3)
 
     def on_suggest5200(self, evt):
-    
-        lower_lim, upper_lim = self.plot_manager.bkgd_selector.get_lims()
-
-        self.lower_lim_txtbox.ChangeValue(str(4710))
-        self.upper_lim_txtbox.ChangeValue(str(5960))
-
-        lower_lim, upper_lim = self.plot_manager.bkgd_selector.get_excl_lims()       
-        self.lower_excl_txtbox.ChangeValue(str(5138))
-        self.upper_excl_txtbox.ChangeValue(str(5280))
-
-        self.fit_order_txtbox.ChangeValue(str(3))
+        self.lower_lim_txtbox.SetValue(4710)
+        self.upper_lim_txtbox.SetValue(5960)
+        self.lower_excl_txtbox.SetValue(5138)
+        self.upper_excl_txtbox.SetValue(5280)
+        self.fit_order_txtbox.SetValue(3)
 
     def on_suggest4500(self, evt):
-    
-        lower_lim, upper_lim = self.plot_manager.bkgd_selector.get_lims()
-
-        self.lower_lim_txtbox.ChangeValue(str(4050))
-        self.upper_lim_txtbox.ChangeValue(str(5072))
-
-        lower_lim, upper_lim = self.plot_manager.bkgd_selector.get_excl_lims()       
-        self.lower_excl_txtbox.ChangeValue(str(4300))
-        self.upper_excl_txtbox.ChangeValue(str(4600))
-
-        self.fit_order_txtbox.ChangeValue(str(3))
+        self.lower_lim_txtbox.SetValue(4050)
+        self.upper_lim_txtbox.SetValue(5072)
+        self.lower_excl_txtbox.SetValue(4300)
+        self.upper_excl_txtbox.SetValue(4600)
+        self.fit_order_txtbox.SetValue(3)
 
     def on_suggestCO3_2(self, evt):
-    
-        lower_lim, upper_lim = self.plot_manager.bkgd_selector.get_lims()
-
-        self.lower_lim_txtbox.ChangeValue(str(1499))
-        self.upper_lim_txtbox.ChangeValue(str(2339))
-
-        lower_lim, upper_lim = self.plot_manager.bkgd_selector.get_excl_lims()       
-        self.lower_excl_txtbox.ChangeValue(str(1551))
-        self.upper_excl_txtbox.ChangeValue(str(2058))
-
-        self.fit_order_txtbox.ChangeValue(str(5))
-
-    def on_applysuggested(self, evt):
-
-        wx.BeginBusyCursor()
-        scan = self.plot_manager.get_current_scan()
-        scan.manual_bkgd = True
-        scan.bkgd_lowlim = float(self.lower_lim_txtbox.GetValue())
-        scan.bkgd_highlim = float(self.upper_lim_txtbox.GetValue())
-        scan.excl_lowlim = float(self.lower_excl_txtbox.GetValue())
-        scan.excl_highlim = float(self.upper_excl_txtbox.GetValue())
-        
-        scan.bkgd_fit_order = int(self.fit_order_txtbox.GetValue())
-        scan.calculate()
-        self.plot_manager.update(scan)
-        wx.EndBusyCursor()    
+        self.lower_lim_txtbox.SetValue(1499)
+        self.upper_lim_txtbox.SetValue(2339)
+        self.lower_excl_txtbox.SetValue(1551)
+        self.upper_excl_txtbox.SetValue(2058)
+        self.fit_order_txtbox.SetValue(5)
+ 
 
 class ControlWindow(wx.Frame):
-    def __init__(self, plot_manager, title):
-        self.plot_manager = plot_manager
+    def __init__(self, scan, title):
         wx.Frame.__init__(self, None, wx.ID_ANY, title)
+        self.SetDropTarget(FileDropTarget(self))
         self.top_panel = wx.Panel(self, wx.ID_ANY)
-        
+
+        # PlotManager builds the matplotlib Figure and a FigureCanvasWxAgg
+        # widget parented to self.top_panel, so the plot lives inside this frame.
+        self.plot_manager = PlotManager(self.top_panel, scan)
+
         self.main_hsizer = wx.BoxSizer(wx.HORIZONTAL)
         self.main_sizer = wx.BoxSizer(wx.VERTICAL)
-        
+
         self.main_sizer.AddSpacer(10)
-        self.main_sizer.Add(wx.StaticText(self.top_panel,wx.ID_ANY, "Background Fitting:"))
-        self.main_sizer.Add(BackgroundFittingControls(self.top_panel, self.plot_manager),0,wx.EXPAND)
-        
-              
-        self.hsizer = wx.BoxSizer(wx.HORIZONTAL)
-        
-        
+        self.main_sizer.Add(wx.StaticText(self.top_panel, wx.ID_ANY, "Background Fitting:"))
+        self.controls = BackgroundFittingControls(self.top_panel, self.plot_manager)
+        self.main_sizer.Add(self.controls, 0, wx.EXPAND)
+        self.main_sizer.Add(self.plot_manager.canvas, 1, wx.EXPAND)
+
         self.main_hsizer.AddSpacer(5)
         self.main_hsizer.Add(self.main_sizer, 1, wx.EXPAND)
         self.main_hsizer.AddSpacer(5)
-        
+
         self.top_panel.SetSizer(self.main_hsizer)
-        self.main_hsizer.Fit(self)
         self.top_panel.SetAutoLayout(1)
 
-        wx.EVT_CLOSE(self, self.on_close)
-        
-        fig = plt.gcf()
-        fig.canvas.mpl_connect('close_event', self.on_fig_close)
+        # Give the window a sensible starting size; the canvas needs room.
+        self.SetSize((900, 800))
 
+        self.Bind(wx.EVT_CLOSE, self.on_close)
         
+        # Add menu bar
+        menubar = wx.MenuBar()
+        file_menu = wx.Menu()
+        open_item = file_menu.Append(wx.ID_OPEN, "&Open...\tCtrl+O", "Open an FTIR file")
+        file_menu.AppendSeparator()
+        quit_item = file_menu.Append(wx.ID_EXIT, "&Quit\tCtrl+Q", "Quit")
+        menubar.Append(file_menu, "&File")
+        self.SetMenuBar(menubar)
+
+        self.Bind(wx.EVT_MENU, self.on_menu_open, open_item)
+        self.Bind(wx.EVT_MENU, self.on_menu_quit, quit_item)
+
         self.Show()
+
+    def load_file(self, path):
+        wavenum, intensity = load_ftir_file(path)
+        scan = ProcessedScan(wavenum, intensity)
+        self.plot_manager.scan = scan # set the PlotManager's scan attr
+        self.plot_manager.bkgd_selector.update(scan)
+        self.plot_manager.figure.tight_layout()
+        self.plot_manager.canvas.draw_idle()
+        self.controls.set_editable()
+        self.controls.update(scan) # populate default text box values
+        self.SetTitle(os.path.basename(path) + " - FTIR Background Subtract")
     
-    
-    def on_close(self,evnt):
-        plt.close()
-        self.Destroy()
-        
-    def on_fig_close(self,evnt):
+    def on_menu_open(self, evt):
+        with wx.FileDialog(self, "Open FTIR file",
+                        wildcard="CSV files (*.csv;*.CSV)|*.csv;*.CSV|All files (*.*)|*.*",
+                        style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as dlg:
+            if dlg.ShowModal() == wx.ID_CANCEL:
+                return
+            self.load_file(dlg.GetPath())
+
+    def on_menu_quit(self, evt):
+        self.Close()
+
+    def on_close(self, evnt):
         self.Destroy()
 
 
+class FileDropTarget(wx.FileDropTarget):
+    def __init__(self, window):
+        super().__init__()
+        self.window = window
+
+    def OnDropFiles(self, x, y, paths):
+        if paths:
+            self.window.load_file(paths[0])
+        return True
 
 
 class ProcessedScan:
@@ -545,10 +444,11 @@ class ProcessedScan:
         self.angle_err = numpy.ones_like(wavenum)*5
         self.col_err = numpy.abs((intensity/100.0)*5)
         
-        self.bkgd_lowlim = wavenum[-1]
-        self.bkgd_highlim = wavenum[0]
-        self.excl_lowlim = numpy.median(wavenum)
-        self.excl_highlim = numpy.median(wavenum)
+        # hard code to suggested 3500 total H2O+OH peak
+        self.bkgd_lowlim = 2400
+        self.bkgd_highlim = 4000
+        self.excl_lowlim = 2590
+        self.excl_highlim = 3788
         
         #background fitting parameters
         self.bkgd_fit_order = bkgd_fit_order
@@ -663,10 +563,11 @@ def find_residuals(x, y, x_err, y_err, func):
 class BackgroundFitDisplay:
     def __init__(self, ax):
         self.ax = ax
-        self.ax.invert_xaxis()
     
     def update(self, scan):
         self.ax.clear()
+        self.ax.set_xlabel(r"Wavenumber (cm$^{-1}$)")
+        self.ax.set_ylabel("Absorbance")
         scan.plot_bkgd_fit(self.ax)
 
         low_idx = numpy.argmin(numpy.abs(scan.angles-scan.bkgd_lowlim))
@@ -674,24 +575,78 @@ class BackgroundFitDisplay:
 
         wavenum = scan.angles[low_idx:high_idx]
         intensity = scan.col_amount[low_idx:high_idx]
-        
+
         self.ax.plot(wavenum, intensity, 'k-')
+        self.ax.invert_xaxis()
         
         
 class BackgroundSubtractedDisplay:
     def __init__(self, ax):
         self.ax = ax
         self.ax.invert_xaxis()
-    
+        self.wavenum = None
+        self.intens = None
+        self.markers = []   # list of (DraggableLine, annotation)
+        self.ax.figure.canvas.mpl_connect('button_press_event', self._on_click)
+
     def update(self, scan):
+        # Disconnect old markers' event handlers; ax.clear() kills the artists.
+        for marker, _ in self.markers:
+            marker.disconnect()
+        self.markers = []
+
         self.ax.clear()
-        low_idx = numpy.argmin(numpy.abs(scan.angles-scan.bkgd_lowlim))
-        high_idx = numpy.argmin(numpy.abs(scan.angles-scan.bkgd_highlim))
-        wavenum = scan.angles[low_idx:high_idx]
-        intens = scan.col_amount[low_idx:high_idx] - scan.bkgd_func(wavenum)
-        
-        self.ax.plot(wavenum, intens, 'g-')
-        self.ax.axhline(y=0, color = 'r')
+        self.ax.invert_xaxis()
+        self.ax.set_xlabel(r"Wavenumber (cm$^{-1}$)")
+        self.ax.set_ylabel("Absorbance (background subtracted)")
+
+        low_idx = numpy.argmin(numpy.abs(scan.angles - scan.bkgd_lowlim))
+        high_idx = numpy.argmin(numpy.abs(scan.angles - scan.bkgd_highlim))
+        self.wavenum = scan.angles[low_idx:high_idx]
+        self.intens = scan.col_amount[low_idx:high_idx] - scan.bkgd_func(self.wavenum)
+
+        self.ax.plot(self.wavenum, self.intens, 'g-')
+        self.ax.axhline(y=0, color='r')
+
+    def _on_click(self, event):
+        # Only respond to left-clicks in our axes, after Apply has populated data.
+        if event.inaxes is not self.ax:
+            return
+        if self.wavenum is None or event.xdata is None:
+            return
+        if event.button != 1:
+            return
+
+        # If the click lands on an existing marker, do nothing — DraggableLine's
+        # own on_press will take over for the drag.
+        for marker, _ in self.markers:
+            contains, _ = marker.line.contains(event)
+            if contains:
+                return
+
+        # Add a new draggable marker at the closest data point.
+        idx = numpy.argmin(numpy.abs(self.wavenum - event.xdata))
+        x = self.wavenum[idx]
+        y = self.intens[idx]
+
+        marker = DraggableLine(x, self.ax, color='k', linewidth=1)
+        label = self.ax.annotate(f"{y:.3f}", xy=(x, y),
+                                 xytext=(5, 5), textcoords='offset points',
+                                 fontsize=9)
+        # Wire the drag-release callback once both objects exist.
+        marker.callback = lambda new_x: self._update_marker(marker, label, new_x)
+        self.markers.append((marker, label))
+        self.ax.figure.canvas.draw_idle()
+
+    def _update_marker(self, marker, label, new_x):
+        # Snap line and label to the nearest data point and refresh the y-value.
+        idx = numpy.argmin(numpy.abs(self.wavenum - new_x))
+        x = self.wavenum[idx]
+        y = self.intens[idx]
+        marker.line.set_xdata([x, x])
+        label.xy = (x, y)
+        label.set_text(f"{y:.3f}")
+        self.ax.figure.canvas.draw_idle()
 
 class BackgroundRangeSelector:
     def __init__(self, ax):
@@ -700,21 +655,30 @@ class BackgroundRangeSelector:
         self.lim_line1 = None
         self.lim_line2 = None
         self.plot = None
+        self.on_drag = None
     
     def update(self, scan):
-        self.ax.cla()
-        if self.lim_line1 is None:
-                self.lim_line1 = DraggableLine(scan.bkgd_lowlim, self.ax, color='g')
-                self.lim_line2 = DraggableLine(scan.bkgd_highlim, self.ax, color='g')
-                self.excl_line1 = DraggableLine(scan.excl_lowlim, self.ax, color='r')
-                self.excl_line2 = DraggableLine(scan.excl_highlim, self.ax, color='r')
-        else:
-            self.lim_line1.set_xpos(scan.bkgd_lowlim)
-            self.lim_line2.set_xpos(scan.bkgd_highlim)
-            self.excl_line1.set_xpos(scan.excl_lowlim)
-            self.excl_line2.set_xpos(scan.excl_highlim)
+        if self.lim_line1 is not None:
+            self.lim_line1.disconnect()
+            self.lim_line2.disconnect()
+            self.excl_line1.disconnect()
+            self.excl_line2.disconnect()
 
-        self.plot = self.ax.plot(scan.angles, scan.col_amount,'b-')
+        self.ax.cla()
+        self.ax.invert_xaxis()
+        self.ax.set_xlabel(r"Wavenumber (cm$^{-1}$)")
+        self.ax.set_ylabel("Absorbance")
+
+        self.plot = self.ax.plot(scan.angles, scan.col_amount, 'b-')
+
+        self.lim_line1 = DraggableLine(scan.bkgd_lowlim, self.ax, color='g',
+                                       callback=self._line_dragged)
+        self.lim_line2 = DraggableLine(scan.bkgd_highlim, self.ax, color='g',
+                                       callback=self._line_dragged)
+        self.excl_line1 = DraggableLine(scan.excl_lowlim, self.ax, color='r',
+                                        callback=self._line_dragged)
+        self.excl_line2 = DraggableLine(scan.excl_highlim, self.ax, color='r',
+                                        callback=self._line_dragged)
         
     def get_lims(self):
         pos1 = self.lim_line1.get_xpos()
@@ -727,62 +691,82 @@ class BackgroundRangeSelector:
         pos2 = self.excl_line2.get_xpos()
         
         return min(pos1,pos2), max(pos1,pos2)
+    
+    def _line_dragged(self, _x):
+        if self.on_drag is not None:
+            self.on_drag()
 
 class PlotManager:
-    def __init__(self,scan):
+    def __init__(self, parent, scan):
         self.callbacks = []
         self.scan = scan
-        #create the plotting window
-        bkgd_select_ax = plt.subplot2grid((3,2), (0,0), colspan=2)
-        bkgd_fit_ax = plt.subplot2grid((3,2), (1,0), colspan=2)
-        
-        bkgd_subtracted_ax = plt.subplot2grid((3,2), (2, 0), colspan=2)
+
+        # Build an explicit Figure (not via pyplot) so the canvas can be
+        # embedded as a wx widget inside `parent`.
+        self.figure = Figure()
+        self.canvas = FigureCanvas(parent, wx.ID_ANY, self.figure)
+
+        bkgd_select_ax = self.figure.add_subplot(3, 1, 1)
+        bkgd_fit_ax = self.figure.add_subplot(3, 1, 2)
+        bkgd_subtracted_ax = self.figure.add_subplot(3, 1, 3)
+
         self.plots = []
-        
+
         self.bkgd_selector = BackgroundRangeSelector(bkgd_select_ax)
-        self.bkgd_selector.update(scan)
+        if scan is not None:
+            self.bkgd_selector.update(scan)
         self.plots.append(self.bkgd_selector)
-        
+
         self.bkgd_fit = BackgroundFitDisplay(bkgd_fit_ax)
         self.plots.append(self.bkgd_fit)
-        
+
         self.bkgd_subtracted_plot = BackgroundSubtractedDisplay(bkgd_subtracted_ax)
         self.plots.append(self.bkgd_subtracted_plot)
-        
+
     def get_current_scan(self):
         return self.scan
-    
-    def show(self):    
-        plt.show()
-        
+
     def register_callback(self, f):
         self.callbacks.append(f)
-             
+
     def update(self, scan):
-        
         wx.BeginBusyCursor()
         for p in self.plots:
             p.update(scan)
-        
-        plt.draw()
-        
+
+        # Re-flow subplots so the now-populated axis labels don't overlap.
+        self.figure.tight_layout()
+        self.canvas.draw_idle()
+
         for f in self.callbacks:
             f(scan)
 
         wx.EndBusyCursor()
 
 def load_ftir_file(filename):
+    # Source - https://stackoverflow.com/a/69817138
+    # Posted by Corralien, modified by community. See post 'Timeline' for change history
+    # Retrieved 2026-10-09, License - CC BY-SA 4.0
 
-    reader = csv.reader(open(filename, "rt"), dialect="excel") 
+    def find_delimiter(filename):
+        sniffer = csv.Sniffer()
+        with open(filename) as fp:
+            delimiter = sniffer.sniff(fp.read(5000)).delimiter
+        return delimiter
 
-    wavenumber = []
-    absorbance = []
+    with open(filename, "rt") as f:
+        delimiter = find_delimiter(filename)
+        reader = csv.reader(f, dialect="excel", delimiter=delimiter)
+        wavenumber = []
+        absorbance = []
 
-    for line in reader:
-        wavenumber.append(float(line[0]))
-        absorbance.append(float(line[1]))
-    
-    return numpy.array(wavenumber), numpy.array(absorbance)
+        for line in reader:
+            try:
+                wavenumber.append(float(line[0]))
+                absorbance.append(float(line[1]))
+            except:
+                pass
+        return numpy.array(wavenumber), numpy.array(absorbance)
 
 if __name__ == '__main__':
     app = wx.App()
