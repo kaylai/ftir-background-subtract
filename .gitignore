@@ -15,6 +15,7 @@ venv/
 
 # Briefcase / BeeWare build output
 .briefcase/
+logs/
 *.log
 
 # Editor / IDE
