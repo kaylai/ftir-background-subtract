@@ -4,13 +4,14 @@ FTIR Background Subtract BeeWare Breifcase App
 A new implementation of Nial and Kayla's OG Backgroundsubtract app in BeeWare's Briefcase for cross-platform packaging and distribution.
 
 To run the app during testing, from the top level project directory:
+
 ```sh
 breifcase dev
 ```
 
 To rebuild the app after changes:
 First, update the version number in pyproject.toml if necessary. Then:
-```sh
+```
 briefcase create
 briefcase build
 briefcase package --adhoc-sign
