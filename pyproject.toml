@@ -1,7 +1,7 @@
 [tool.briefcase]
 project_name = "FTIR Background Subtract Briefcase"
 bundle = "com.example"
-version = "0.0.1"
+version = "0.0.2"
 url = "https://github.com/kaylai/ftir-background-subtract"
 license = "MIT"
 license-files = ["LICENSE"]
